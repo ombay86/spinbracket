@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   Clock,
 } from 'lucide-react';
-import { Tournament } from '@/lib/db';
+import { clientDb, Tournament } from '@/lib/client-db';
+import { createCoffee28Bracket, createStandardKnockoutBracket } from '@/lib/bracket-generator';
+import { Download, Upload } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -31,29 +33,22 @@ export default function DashboardPage() {
   // New Tournament Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newSubtitle, setNewSubtitle] = useState('Manual Brewing Throwdown Competition');
+  const [newSubtitle, setNewSubtitle] = useState('Championship Knockdown Competition');
   const [newLocation, setNewLocation] = useState('Main Stage');
   const [newDate, setNewDate] = useState('10 - 11 Oktober 2026');
   const [newFormat, setNewFormat] = useState<'coffee-28' | 'knockout-standard'>('coffee-28');
   const [creating, setCreating] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = () => {
     try {
-      // Check auth
-      const meRes = await fetch('/api/auth/me');
-      if (!meRes.ok) {
+      const currentUser = clientDb.getCurrentUser();
+      if (!currentUser) {
         router.push('/login');
         return;
       }
-      const meData = await meRes.json();
-      setUser(meData.user);
-
-      // Fetch tournaments
-      const tRes = await fetch('/api/tournaments');
-      if (tRes.ok) {
-        const tData = await tRes.json();
-        setTournaments(tData.tournaments || []);
-      }
+      setUser(currentUser);
+      const list = clientDb.getTournaments();
+      setTournaments(list);
     } catch (err) {
       console.error(err);
     } finally {
@@ -65,18 +60,16 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+  const handleLogout = () => {
+    clientDb.logout();
     router.push('/login');
   };
 
-  const handleSeedSample = async () => {
+  const handleSeedSample = () => {
     setSeeding(true);
     try {
-      const res = await fetch('/api/seed-sample', { method: 'POST' });
-      if (res.ok) {
-        await fetchData();
-      }
+      clientDb.seedSampleTournament();
+      fetchData();
     } catch (err) {
       console.error(err);
     } finally {
@@ -84,30 +77,39 @@ export default function DashboardPage() {
     }
   };
 
-  const handleCreateTournament = async (e: React.FormEvent) => {
+  const handleCreateTournament = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle) return;
     setCreating(true);
 
     try {
-      const res = await fetch('/api/tournaments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newTitle,
-          subtitle: newSubtitle,
-          location: newLocation,
-          date: newDate,
-          format: newFormat,
-          participants: [],
-        }),
-      });
+      const tournamentId = `trn_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const generated =
+        newFormat === 'coffee-28'
+          ? createCoffee28Bracket([])
+          : createStandardKnockoutBracket([]);
 
-      if (res.ok) {
-        const data = await res.json();
-        setShowCreateModal(false);
-        router.push(`/tournament/${data.tournament.id}/setup`);
-      }
+      const newTournament: Tournament = {
+        id: tournamentId,
+        userId: user?.id || 'user_admin',
+        title: newTitle,
+        subtitle: newSubtitle,
+        location: newLocation,
+        date: newDate,
+        format: newFormat,
+        status: 'draft',
+        participants: [],
+        unassignedParticipantIds: [],
+        rounds: generated.rounds,
+        matches: generated.matches,
+        grandFinalists: generated.grandFinalists,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      clientDb.saveTournament(newTournament);
+      setShowCreateModal(false);
+      router.push(`/tournament/${newTournament.id}/setup`);
     } catch (err) {
       console.error(err);
     } finally {
@@ -115,16 +117,40 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDelete = async (id: string, title: string) => {
+  const handleDelete = (id: string, title: string) => {
     if (!confirm(`Hapus turnamen "${title}"?`)) return;
-    try {
-      const res = await fetch(`/api/tournaments/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setTournaments((prev) => prev.filter((t) => t.id !== id));
+    clientDb.deleteTournament(id);
+    fetchData();
+  };
+
+  const handleExportData = () => {
+    const dataStr = clientDb.exportData();
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spinbracket_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const ok = clientDb.importData(content);
+        if (ok) {
+          alert('Data berhasil di-import!');
+          fetchData();
+        } else {
+          alert('Format file JSON tidak valid.');
+        }
       }
-    } catch (err) {
-      console.error(err);
-    }
+    };
+    reader.readAsText(file);
   };
 
   if (loading) {
@@ -214,8 +240,26 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-black text-white">Daftar Turnamen Tersimpan</h2>
             <p className="text-sm text-coffee-400">Pilih turnamen untuk membuka layar TV atau mengundi peserta</p>
           </div>
-          <div className="text-sm font-semibold text-gold-400 bg-gold-500/10 px-3 py-1 rounded-full border border-gold-500/30">
-            Total: {tournaments.length} Turnamen
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleExportData}
+              title="Download backup file JSON"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-coffee-850 hover:bg-coffee-800 text-coffee-200 border border-coffee-700 text-xs font-semibold transition"
+            >
+              <Download className="w-3.5 h-3.5 text-gold-400" />
+              Backup JSON
+            </button>
+            <label
+              title="Restore data dari file JSON"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-coffee-850 hover:bg-coffee-800 text-coffee-200 border border-coffee-700 text-xs font-semibold cursor-pointer transition"
+            >
+              <Upload className="w-3.5 h-3.5 text-gold-400" />
+              Restore JSON
+              <input type="file" accept=".json" onChange={handleImportData} className="hidden" />
+            </label>
+            <div className="text-sm font-semibold text-gold-400 bg-gold-500/10 px-3 py-1.5 rounded-lg border border-gold-500/30">
+              Total: {tournaments.length} Turnamen
+            </div>
           </div>
         </div>
 

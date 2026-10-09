@@ -13,7 +13,7 @@ import {
   Coffee,
   Sparkles,
 } from 'lucide-react';
-import { Tournament, Participant, Match } from '@/lib/db';
+import { clientDb, Tournament, Participant, Match } from '@/lib/client-db';
 import { SpinWheel } from '@/components/SpinWheel';
 
 export default function SpinWheelPage() {
@@ -26,15 +26,14 @@ export default function SpinWheelPage() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
 
-  const fetchTournament = async () => {
+  const fetchTournament = () => {
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}`);
-      if (!res.ok) {
+      const t = clientDb.getTournamentById(tournamentId);
+      if (!t) {
         router.push('/dashboard');
         return;
       }
-      const data = await res.json();
-      setTournament(data.tournament);
+      setTournament(t);
     } catch (e) {
       console.error(e);
     } finally {
@@ -119,22 +118,17 @@ export default function SpinWheelPage() {
 
     updatedMatches[targetMatch.id] = matchCopy;
 
-    // Save to DB
+    // Save to local storage
     try {
-      setSaveStatus('Menyimpan hasil undian...');
-      const res = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matches: updatedMatches,
-          status: 'in_progress',
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTournament(data.tournament);
-        setSaveStatus('');
-      }
+      const updatedTournament: Tournament = {
+        ...tournament,
+        matches: updatedMatches,
+        status: 'in_progress',
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
+      setSaveStatus('');
     } catch (e) {
       console.error(e);
       setSaveStatus('Gagal menyimpan undian');
@@ -142,7 +136,7 @@ export default function SpinWheelPage() {
   };
 
   // Auto-draw all remaining participants randomly
-  const handleAutoDrawAll = async () => {
+  const handleAutoDrawAll = () => {
     if (availableParticipants.length === 0) return;
     if (!confirm('Acak semua sisa slot yang belum terisi secara otomatis?')) return;
 
@@ -178,27 +172,22 @@ export default function SpinWheelPage() {
     }
 
     try {
-      setSaveStatus('Menyimpan semua undian...');
-      const res = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matches: updatedMatches,
-          status: 'in_progress',
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTournament(data.tournament);
-        setSaveStatus('');
-      }
+      const updatedTournament: Tournament = {
+        ...tournament,
+        matches: updatedMatches,
+        status: 'in_progress',
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
+      setSaveStatus('');
     } catch (e) {
       console.error(e);
     }
   };
 
   // Reset drawing
-  const handleResetDraw = async () => {
+  const handleResetDraw = () => {
     if (!confirm('Reset semua pasangan undian Babak 1? Semua hasil pairing akan dikosongkan.')) return;
 
     const updatedMatches = { ...tournament.matches };
@@ -213,18 +202,14 @@ export default function SpinWheelPage() {
     });
 
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matches: updatedMatches,
-          status: 'draft',
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTournament(data.tournament);
-      }
+      const updatedTournament: Tournament = {
+        ...tournament,
+        matches: updatedMatches,
+        status: 'draft',
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
     } catch (e) {
       console.error(e);
     }

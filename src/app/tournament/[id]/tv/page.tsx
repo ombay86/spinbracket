@@ -18,7 +18,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { Tournament, Match, Participant } from '@/lib/db';
+import { clientDb, Tournament, Match, Participant } from '@/lib/client-db';
 import { WinnerCelebrationModal } from '@/components/WinnerCelebrationModal';
 import { GrandChampionModal } from '@/components/GrandChampionModal';
 
@@ -59,15 +59,14 @@ export default function TvBracketPage() {
   const [showGrandChampionModal, setShowGrandChampionModal] = useState(false);
 
   // Fetch tournament data
-  const fetchTournament = async () => {
+  const fetchTournament = () => {
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}`);
-      if (!res.ok) {
+      const t = clientDb.getTournamentById(tournamentId);
+      if (!t) {
         router.push('/dashboard');
         return;
       }
-      const data = await res.json();
-      setTournament(data.tournament);
+      setTournament(t);
     } catch (e) {
       console.error(e);
     } finally {
@@ -169,21 +168,16 @@ export default function TvBracketPage() {
       nextStageLabel = nextM.label;
     }
 
-    // Save to server DB
+    // Save to local storage
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matches: updatedMatches,
-          status: 'in_progress',
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setTournament(data.tournament);
-      }
+      const updatedTournament: Tournament = {
+        ...tournament,
+        matches: updatedMatches,
+        status: 'in_progress',
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
     } catch (e) {
       console.error(e);
     } finally {
@@ -213,22 +207,17 @@ export default function TvBracketPage() {
     const third = tournament.participants.find((p) => p.id === p3WinnerId) || null;
 
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          winners: { first, second, third },
-          status: 'completed',
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setTournament(data.tournament);
-        setShowGrandFinalModal(false);
-        // Trigger Mega Finale Gimmick!
-        setShowGrandChampionModal(true);
-      }
+      const updatedTournament: Tournament = {
+        ...tournament,
+        winners: { first, second, third },
+        status: 'completed',
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
+      setShowGrandFinalModal(false);
+      // Trigger Mega Finale Gimmick!
+      setShowGrandChampionModal(true);
     } catch (e) {
       console.error(e);
     }

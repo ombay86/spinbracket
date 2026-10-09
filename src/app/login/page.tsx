@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Trophy, Coffee, Lock, User, ArrowRight } from 'lucide-react';
+import { clientDb } from '@/lib/client-db';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,19 +19,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal login');
+      const result = clientDb.login(username, password);
+      if (result.error) {
+        throw new Error(result.error);
       }
-
       router.push('/dashboard');
-      router.refresh();
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan saat login');
     } finally {

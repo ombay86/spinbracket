@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Trophy, Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
+import { clientDb } from '@/lib/client-db';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -13,25 +14,17 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, username, password }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Gagal mendaftar');
+      const result = clientDb.register(username, password, name);
+      if (result.error) {
+        throw new Error(result.error);
       }
-
       router.push('/dashboard');
-      router.refresh();
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan');
     } finally {

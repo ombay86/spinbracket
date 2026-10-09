@@ -17,7 +17,7 @@ import {
   Camera,
   Sparkles,
 } from 'lucide-react';
-import { Tournament, Participant } from '@/lib/db';
+import { clientDb, Tournament, Participant } from '@/lib/client-db';
 import { createDynamicBracket } from '@/lib/bracket-generator';
 
 const sampleNames = [
@@ -56,16 +56,15 @@ export default function ParticipantSetupPage() {
   const [newAffiliation, setNewAffiliation] = useState('');
   const [newPhoto, setNewPhoto] = useState('');
 
-  const fetchTournament = async () => {
+  const fetchTournament = () => {
     try {
-      const res = await fetch(`/api/tournaments/${tournamentId}`);
-      if (!res.ok) {
+      const t = clientDb.getTournamentById(tournamentId);
+      if (!t) {
         router.push('/dashboard');
         return;
       }
-      const data = await res.json();
-      setTournament(data.tournament);
-      setParticipants(data.tournament.participants || []);
+      setTournament(t);
+      setParticipants(t.participants || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -167,24 +166,22 @@ export default function ParticipantSetupPage() {
       const matches = generated.matches;
       const grandFinalists = generated.grandFinalists;
 
-      const res = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          participants,
-          unassignedParticipantIds: participants.map((p) => p.id),
-          rounds,
-          matches,
-          grandFinalists,
-        }),
-      });
+      const updatedTournament: Tournament = {
+        ...tournament,
+        participants,
+        unassignedParticipantIds: participants.map((p) => p.id),
+        rounds,
+        matches,
+        grandFinalists,
+        updatedAt: new Date().toISOString(),
+      };
 
-      if (res.ok) {
-        setSavedSuccess(true);
-        setTimeout(() => setSavedSuccess(false), 3000);
-        if (redirectTarget) {
-          router.push(redirectTarget);
-        }
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+      if (redirectTarget) {
+        router.push(redirectTarget);
       }
     } catch (e) {
       console.error(e);

@@ -3,21 +3,18 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { clientDb } from '@/lib/client-db';
+
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then((res) => {
-        if (res.ok) {
-          router.replace('/dashboard');
-        } else {
-          router.replace('/login');
-        }
-      })
-      .catch(() => {
-        router.replace('/login');
-      });
+    const user = clientDb.getCurrentUser();
+    if (user) {
+      router.replace('/dashboard');
+    } else {
+      router.replace('/login');
+    }
   }, [router]);
 
   return (
