@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { clientDb, Tournament, Participant, Match } from '@/lib/client-db';
 import { SpinWheel } from '@/components/SpinWheel';
+import { showAlert } from '@/lib/sweetalert';
 
 export default function SpinWheelPage() {
   const router = useRouter();
@@ -136,9 +137,16 @@ export default function SpinWheelPage() {
   };
 
   // Auto-draw all remaining participants randomly
-  const handleAutoDrawAll = () => {
+  const handleAutoDrawAll = async () => {
     if (availableParticipants.length === 0) return;
-    if (!confirm('Acak semua sisa slot yang belum terisi secara otomatis?')) return;
+    const confirmed = await showAlert.confirm({
+      title: 'Acak Sisa Slot Otomatis?',
+      text: `${availableParticipants.length} peserta yang belum terundi akan dipasangkan ke slot kosong secara acak.`,
+      confirmText: 'Ya, Acak Sekarang',
+      cancelText: 'Batal',
+      icon: 'question',
+    });
+    if (!confirmed) return;
 
     // Shuffle remaining participants
     const shuffled = [...availableParticipants].sort(() => Math.random() - 0.5);
@@ -181,14 +189,23 @@ export default function SpinWheelPage() {
       clientDb.saveTournament(updatedTournament);
       setTournament(updatedTournament);
       setSaveStatus('');
+      showAlert.success('Selesai Diundi!', 'Semua slot Babak 1 telah terisi.');
     } catch (e) {
       console.error(e);
+      showAlert.error('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan hasil undian.');
     }
   };
 
   // Reset drawing
-  const handleResetDraw = () => {
-    if (!confirm('Reset semua pasangan undian Babak 1? Semua hasil pairing akan dikosongkan.')) return;
+  const handleResetDraw = async () => {
+    const confirmed = await showAlert.confirm({
+      title: 'Reset Undian Babak 1?',
+      text: 'Semua pasangan hasil undian Babak 1 akan dikosongkan kembali dan seluruh peserta dapat diundi ulang.',
+      confirmText: 'Ya, Reset Undian',
+      cancelText: 'Batal',
+      isDanger: true,
+    });
+    if (!confirmed) return;
 
     const updatedMatches = { ...tournament.matches };
     round1Matches.forEach((m) => {
@@ -210,8 +227,11 @@ export default function SpinWheelPage() {
       };
       clientDb.saveTournament(updatedTournament);
       setTournament(updatedTournament);
+      setSaveStatus('');
+      showAlert.success('Undian Direset!', 'Semua pasangan Babak 1 telah dikosongkan.');
     } catch (e) {
       console.error(e);
+      showAlert.error('Gagal Reset', 'Terjadi kesalahan saat mengosongkan pasangan undian.');
     }
   };
 

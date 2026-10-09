@@ -135,3 +135,106 @@ body {
 .animate-blue-corner {
   animation: blueCornerGlow 2s infinite ease-in-out;
 }
+
+/* =========================================================================
+   COFFEEBREW SWEETALERT2 LUXURY THEME
+========================================================================= */
+.coffee-swal-popup {
+  background: linear-gradient(180deg, #18100b 0%, #0d0805 100%) !important;
+  border: 2px solid rgba(234, 179, 8, 0.5) !important;
+  border-radius: 1.5rem !important;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.95), 0 0 35px rgba(234, 179, 8, 0.25) !important;
+  padding: 1.75rem 1.5rem !important;
+}
+
+.coffee-swal-title {
+  color: #fef08a !important;
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+}
+
+.coffee-swal-html {
+  color: #e5cbb5 !important;
+  font-size: 0.95rem !important;
+  line-height: 1.6 !important;
+}
+
+.coffee-swal-actions {
+  gap: 0.75rem !important;
+  margin-top: 1.25rem !important;
+}
+
+.coffee-swal-confirm {
+  background: linear-gradient(to right, #f59e0b, #eab308) !important;
+  color: #1c0f07 !important;
+  font-weight: 800 !important;
+  font-size: 0.875rem !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 0.875rem !important;
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.4) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.coffee-swal-confirm:hover {
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.6) !important;
+}
+
+.coffee-swal-cancel {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 0.875rem !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 0.875rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.coffee-swal-cancel:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.coffee-swal-danger-btn {
+  background: linear-gradient(to right, #dc2626, #ef4444) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 0.875rem !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 0.875rem !important;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.coffee-swal-danger-btn:hover {
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.6) !important;
+}
+
+.swal2-icon.swal2-warning {
+  border-color: #facc15 !important;
+  color: #facc15 !important;
+}
+
+.swal2-icon.swal2-success {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+
+.swal2-icon.swal2-success .swal2-success-ring {
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.swal2-icon.swal2-error {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+
+.swal2-icon.swal2-question {
+  border-color: #eab308 !important;
+  color: #eab308 !important;
+}
+

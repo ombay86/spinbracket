@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { clientDb, Tournament, Participant } from '@/lib/client-db';
 import { createDynamicBracket } from '@/lib/bracket-generator';
+import { showAlert } from '@/lib/sweetalert';
 
 const sampleNames = [
   'Dimas Aditya', 'Siti Rahma', 'Budi Santoso', 'Rian Pratama',
@@ -120,8 +121,32 @@ export default function ParticipantSetupPage() {
     setParticipants(participants.filter((p) => p.id !== id));
   };
 
+  // Clear all participants
+  const handleClearAll = async () => {
+    if (participants.length === 0) return;
+    const confirmed = await showAlert.confirm({
+      title: 'Hapus Semua Peserta?',
+      text: `Seluruh ${participants.length} peserta dalam daftar turnamen ini akan dihapus.`,
+      confirmText: 'Ya, Kosongkan',
+      cancelText: 'Batal',
+      isDanger: true,
+    });
+    if (!confirmed) return;
+    setParticipants([]);
+    showAlert.success('Daftar Dikosongkan', 'Semua peserta telah dihapus dari daftar.', 1800);
+  };
+
   // Preset generator (e.g. 28 participants like reference)
-  const handleLoad28Preset = () => {
+  const handleLoad28Preset = async () => {
+    if (participants.length > 0) {
+      const confirmed = await showAlert.confirm({
+        title: 'Muat Preset 28 Peserta?',
+        text: 'Daftar peserta yang ada saat ini akan digantikan dengan 28 peserta preset.',
+        confirmText: 'Ya, Gantikan',
+        cancelText: 'Batal',
+      });
+      if (!confirmed) return;
+    }
     const list: Participant[] = [];
     for (let i = 0; i < 28; i++) {
       list.push({
@@ -133,10 +158,20 @@ export default function ParticipantSetupPage() {
       });
     }
     setParticipants(list);
+    showAlert.success('Preset Berhasil Dimuat!', '28 peserta telah dimasukkan ke dalam daftar.', 1800);
   };
 
   // Preset 16 participants
-  const handleLoad16Preset = () => {
+  const handleLoad16Preset = async () => {
+    if (participants.length > 0) {
+      const confirmed = await showAlert.confirm({
+        title: 'Muat Preset 16 Peserta?',
+        text: 'Daftar peserta yang ada saat ini akan digantikan dengan 16 peserta preset.',
+        confirmText: 'Ya, Gantikan',
+        cancelText: 'Batal',
+      });
+      if (!confirmed) return;
+    }
     const list: Participant[] = [];
     for (let i = 0; i < 16; i++) {
       list.push({
@@ -148,6 +183,7 @@ export default function ParticipantSetupPage() {
       });
     }
     setParticipants(list);
+    showAlert.success('Preset Berhasil Dimuat!', '16 peserta telah dimasukkan ke dalam daftar.', 1800);
   };
 
   // Save changes to DB
@@ -182,9 +218,12 @@ export default function ParticipantSetupPage() {
       setTimeout(() => setSavedSuccess(false), 3000);
       if (redirectTarget) {
         router.push(redirectTarget);
+      } else {
+        showAlert.success('Tersimpan!', 'Perubahan peserta dan bagan pertandingan berhasil disimpan.', 2000);
       }
     } catch (e) {
       console.error(e);
+      showAlert.error('Gagal Menyimpan', 'Terjadi kesalahan saat menyimpan perubahan.');
     } finally {
       setSaving(false);
     }
@@ -270,7 +309,7 @@ export default function ParticipantSetupPage() {
             </button>
             {participants.length > 0 && (
               <button
-                onClick={() => setParticipants([])}
+                onClick={handleClearAll}
                 className="text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 px-3 py-2 rounded-xl transition"
               >
                 Hapus Semua

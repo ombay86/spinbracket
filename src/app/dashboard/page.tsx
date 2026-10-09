@@ -22,6 +22,7 @@ import {
 import { clientDb, Tournament } from '@/lib/client-db';
 import { createCoffee28Bracket, createStandardKnockoutBracket } from '@/lib/bracket-generator';
 import { Download, Upload } from 'lucide-react';
+import { showAlert } from '@/lib/sweetalert';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -117,9 +118,17 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDelete = (id: string, title: string) => {
-    if (!confirm(`Hapus turnamen "${title}"?`)) return;
+  const handleDelete = async (id: string, title: string) => {
+    const confirmed = await showAlert.confirm({
+      title: 'Hapus Turnamen?',
+      text: `Turnamen "${title}" beserta seluruh peserta dan bagan pertandingannya akan dihapus permanen.`,
+      confirmText: 'Ya, Hapus Turnamen',
+      cancelText: 'Batal',
+      isDanger: true,
+    });
+    if (!confirmed) return;
     clientDb.deleteTournament(id);
+    showAlert.success('Terhapus!', 'Turnamen berhasil dihapus.');
     fetchData();
   };
 
@@ -132,25 +141,27 @@ export default function DashboardPage() {
     a.download = `spinbracket_backup_${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    showAlert.success('Backup Siap!', 'File data backup JSON berhasil diunduh.', 2000);
   };
 
   const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const content = event.target?.result as string;
       if (content) {
         const ok = clientDb.importData(content);
         if (ok) {
-          alert('Data berhasil di-import!');
+          await showAlert.success('Data Berhasil Di-import!', 'Seluruh turnamen dan data peserta berhasil dipulihkan.');
           fetchData();
         } else {
-          alert('Format file JSON tidak valid.');
+          showAlert.error('Format Tidak Valid', 'File JSON yang diunggah tidak memiliki struktur data turnamen yang sesuai.');
         }
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   if (loading) {

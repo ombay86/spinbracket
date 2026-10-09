@@ -28,6 +28,7 @@ import {
 import { clientDb, Tournament, Match, Participant } from '@/lib/client-db';
 import { WinnerCelebrationModal } from '@/components/WinnerCelebrationModal';
 import { GrandChampionModal } from '@/components/GrandChampionModal';
+import { showAlert } from '@/lib/sweetalert';
 
 export default function TvBracketPage() {
   const router = useRouter();
@@ -130,6 +131,27 @@ export default function TvBracketPage() {
     const loserData = winnerSlot === 'A' ? match.participantB : match.participantA;
 
     if (!winnerData || !winnerData.participantId) return;
+
+    // SweetAlert confirmation for operators to prevent accidental clicks
+    if (match.participantB?.isBye) {
+      const confirmed = await showAlert.confirm({
+        title: 'Loloskan Bypass?',
+        text: `Peserta "${winnerData.name}" akan langsung diloloskan ke babak berikutnya karena mendapatkan slot bypass.`,
+        confirmText: 'Ya, Loloskan',
+        cancelText: 'Batal',
+        icon: 'question',
+      });
+      if (!confirmed) return;
+    } else {
+      const confirmed = await showAlert.confirmWinner({
+        winnerName: winnerData.name || 'Brewer',
+        corner: winnerSlot,
+        matchLabel: match.label,
+        affiliation: winnerData.affiliation,
+        photo: winnerData.photo,
+      });
+      if (!confirmed) return;
+    }
 
     const updatedMatches = { ...tournament.matches };
     const matchCopy = { ...updatedMatches[match.id] };
