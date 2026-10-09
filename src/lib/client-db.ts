@@ -47,13 +47,14 @@ function buildDefaultSampleTournament(): Tournament {
   }));
 
   const generated = createCoffee28Bracket(participants);
+  const round0MatchIds = generated.rounds[0]?.matchIds || [];
 
-  for (let i = 0; i < 14; i++) {
-    const matchId = `b${i + 1}`;
+  for (let i = 0; i < round0MatchIds.length; i++) {
+    const matchId = round0MatchIds[i];
     const pA = participants[i * 2];
     const pB = participants[i * 2 + 1];
 
-    if (generated.matches[matchId]) {
+    if (generated.matches[matchId] && pA && pB) {
       generated.matches[matchId].participantA = {
         participantId: pA.id,
         name: pA.name,
@@ -217,18 +218,21 @@ export const clientDb = {
     const t = db.tournaments.find((item) => item.id === id);
     if (!t) return null;
 
-    // Auto-heal / sync bracket if participant count doesn't match round 1 capacity
+    // Auto-heal / sync bracket if participant count doesn't match round 1 capacity or needs Grand Final
     const pCount = t.participants?.length || 0;
     if (pCount > 0) {
       const round0MatchIds = (t.rounds?.[0]?.matchIds || []).filter((m) => !m.includes('bye'));
       const capacity = round0MatchIds.length * 2;
-      if (capacity < pCount || round0MatchIds.length === 0) {
+      const lastRound = t.rounds?.[t.rounds.length - 1];
+      const hasGrandFinalMatch = lastRound?.matchIds?.some((m) => m.includes('grand_final'));
+
+      if (capacity < pCount || round0MatchIds.length === 0 || !hasGrandFinalMatch) {
         const generated = createDynamicBracket(
           t.participants,
           t.format === 'coffee-28' ? 'throwdown' : 'knockout'
         );
         t.rounds = generated.rounds;
-        t.matches = generated.matches;
+        t.matches = { ...generated.matches, ...t.matches };
         t.grandFinalists = generated.grandFinalists;
         this.saveTournament(t);
       }

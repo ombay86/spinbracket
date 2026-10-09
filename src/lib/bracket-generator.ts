@@ -1,16 +1,12 @@
 import { Match, Round, Participant, GrandFinalist } from './db';
 
 export interface BracketOptions {
-  bypassPosition?: 'first' | 'last'; // Which match gets the bypass when matches count is odd
+  bypassPosition?: 'first' | 'last';
   formatType?: 'throwdown' | 'knockout';
 }
 
 /**
- * Dynamic Throwdown Bracket Generator for ANY number of participants N
- * If a round has an ODD number of matches M = 2k + 1:
- * - 2k matches are paired into k matches in the next round.
- * - The 1 remaining match is designated as the BYPASS MATCH!
- *   Its winner automatically BYPASSES to the next stage without having to fight in an extra match!
+ * Dynamic Tournament Bracket Generator with Bilateral Support & Grand Final / 3rd Place Playoff
  */
 export function createDynamicBracket(
   participants: Participant[],
@@ -27,21 +23,25 @@ export function createDynamicBracket(
   const rounds: Round[] = [];
   const count = Math.max(participants.length, 2);
 
-  // Determine round structure
-  // Each round has a number of matches.
-  // If participants count is even: matches = count / 2
-  // If count is odd: matches = Math.floor(count / 2) + 1 (where 1 is a bypass slot)
+  // Determine round structures
   const roundStructures: {
     matchCount: number;
     hasBypass: boolean;
-    bypassMatchIndex: number; // which match is the bypass (0 for first, or matchCount - 1 for last)
+    bypassMatchIndex: number;
+    isFinalRound?: boolean;
   }[] = [];
 
   let currentBrewers = count;
 
   while (currentBrewers > 1) {
-    if (currentBrewers === 3 && formatType === 'throwdown') {
-      // 3 finalists remain for the Grand Throwdown!
+    if (currentBrewers === 2) {
+      // Final Round: 1 Grand Final (Juara 1 & 2) + 1 3rd Place match (Juara 3)
+      roundStructures.push({
+        matchCount: 2,
+        hasBypass: false,
+        bypassMatchIndex: -1,
+        isFinalRound: true,
+      });
       break;
     }
 
@@ -49,8 +49,6 @@ export function createDynamicBracket(
     const standardMatches = Math.floor(currentBrewers / 2);
 
     if (isOdd) {
-      // e.g. 7 brewers -> 3 battles + 1 bypass slot (total 4 slots)
-      // or if previous round had odd matches:
       const totalMatchSlots = standardMatches + 1;
       const bypassIdx = bypassPosition === 'first' ? 0 : totalMatchSlots - 1;
       roundStructures.push({
@@ -58,10 +56,8 @@ export function createDynamicBracket(
         hasBypass: true,
         bypassMatchIndex: bypassIdx,
       });
-      // Next round will have standardMatches winners + 1 bypass winner = standardMatches + 1
       currentBrewers = standardMatches + 1;
     } else {
-      // Even number of brewers
       roundStructures.push({
         matchCount: standardMatches,
         hasBypass: false,
@@ -75,40 +71,80 @@ export function createDynamicBracket(
   let matchGlobalCounter = 1;
 
   for (let r = 0; r < totalRounds; r++) {
-    const { matchCount, hasBypass, bypassMatchIndex } = roundStructures[r];
+    const { matchCount, hasBypass, bypassMatchIndex, isFinalRound } = roundStructures[r];
     const matchIds: string[] = [];
 
     let roundName = `BABAK ${r + 1}`;
     let subTitle = `${hasBypass ? matchCount - 1 : matchCount} BATTLE${hasBypass ? ' + 1 BYPASS' : ''}`;
 
-    if (r === totalRounds - 1 && currentBrewers <= 2) {
-      roundName = 'FINAL CHAMPIONSHIP';
-      subTitle = 'Perebutan Juara 1';
+    if (isFinalRound || r === totalRounds - 1) {
+      roundName = 'BABAK FINAL';
+      subTitle = 'Grand Final & Juara 3';
     } else if (r === totalRounds - 2) {
       roundName = 'SEMI FINAL';
       subTitle = `${matchCount} BATTLE`;
     } else if (r === 0) {
       roundName = `${count} BREWER`;
       subTitle = `BABAK 1 (${matchCount} BATTLE)`;
+    } else if (r === 1) {
+      roundName = 'BABAK 2';
+      subTitle = `${matchCount} BATTLE`;
+    } else if (r === 2) {
+      roundName = 'BABAK 3';
+      subTitle = 'PEREMPAT FINAL';
     }
 
-    for (let m = 0; m < matchCount; m++) {
-      const isThisBypass = hasBypass && m === bypassMatchIndex;
-      const id = isThisBypass ? `r${r}_bypass` : `r${r}_m${m + 1}`;
-      matchIds.push(id);
-
-      matches[id] = {
-        id,
-        matchNumber: isThisBypass ? 0 : matchGlobalCounter++,
-        label: isThisBypass ? '⚡ BYPASS (Lolos Langsung)' : `Battle ${matchGlobalCounter - 1}`,
+    if (isFinalRound) {
+      // 1. Grand Final (Juara 1 & 2)
+      const grandFinalId = `r${r}_grand_final`;
+      matchIds.push(grandFinalId);
+      matches[grandFinalId] = {
+        id: grandFinalId,
+        matchNumber: matchGlobalCounter++,
+        label: `Battle ${matchGlobalCounter - 1} • GRAND FINAL`,
         roundIndex: r,
         participantA: null,
-        participantB: isThisBypass ? { name: 'BYPASS / BYE', isBye: true } : null,
+        participantB: null,
         winnerId: null,
-        status: isThisBypass ? 'ready' : 'pending',
+        status: 'pending',
         nextMatchId: null,
         nextMatchSlot: null,
       };
+
+      // 2. Perebutan Juara 3 (3rd Place Match)
+      const thirdPlaceId = `r${r}_third_place`;
+      matchIds.push(thirdPlaceId);
+      matches[thirdPlaceId] = {
+        id: thirdPlaceId,
+        matchNumber: matchGlobalCounter++,
+        label: `Battle ${matchGlobalCounter - 1} • PEREBUTAN JUARA 3`,
+        roundIndex: r,
+        participantA: null,
+        participantB: null,
+        winnerId: null,
+        status: 'pending',
+        nextMatchId: null,
+        nextMatchSlot: null,
+      };
+    } else {
+      for (let m = 0; m < matchCount; m++) {
+        const isThisBypass = hasBypass && m === bypassMatchIndex;
+        const id = isThisBypass ? `r${r}_bypass` : `r${r}_m${m + 1}`;
+        matchIds.push(id);
+
+        matches[id] = {
+          id,
+          matchNumber: isThisBypass ? 0 : matchGlobalCounter++,
+          label: isThisBypass ? '⚡ BYPASS (Lolos Langsung)' : `Battle ${matchGlobalCounter - 1}`,
+          roundIndex: r,
+          participantA: null,
+          participantB: isThisBypass ? { name: 'BYPASS / BYE', isBye: true } : null,
+          winnerId: null,
+          status: isThisBypass ? 'ready' : 'pending',
+          nextMatchId: null,
+          nextMatchSlot: null,
+        };
+      }
     }
 
     rounds.push({
@@ -123,6 +159,27 @@ export function createDynamicBracket(
   for (let r = 0; r < totalRounds - 1; r++) {
     const currentRoundMatchIds = rounds[r].matchIds;
     const nextRoundMatchIds = rounds[r + 1].matchIds;
+
+    // Special linking for Semifinal -> Final (Grand Final + 3rd Place)
+    if (r === totalRounds - 2 && currentRoundMatchIds.length === 2 && nextRoundMatchIds.length === 2) {
+      const sf1Id = currentRoundMatchIds[0];
+      const sf2Id = currentRoundMatchIds[1];
+      const grandFinalId = nextRoundMatchIds[0];
+      const thirdPlaceId = nextRoundMatchIds[1];
+
+      // SF1 winner to GF (A), loser to 3rd Place (A)
+      matches[sf1Id].nextMatchId = grandFinalId;
+      matches[sf1Id].nextMatchSlot = 'A';
+      matches[sf1Id].loserMatchId = thirdPlaceId;
+      matches[sf1Id].loserMatchSlot = 'A';
+
+      // SF2 winner to GF (B), loser to 3rd Place (B)
+      matches[sf2Id].nextMatchId = grandFinalId;
+      matches[sf2Id].nextMatchSlot = 'B';
+      matches[sf2Id].loserMatchId = thirdPlaceId;
+      matches[sf2Id].loserMatchSlot = 'B';
+      continue;
+    }
 
     let nextMatchIdx = 0;
     let nextSlot: 'A' | 'B' = 'A';
@@ -160,7 +217,6 @@ export function createDynamicBracket(
   let pIdx = 0;
   for (const mId of round0MatchIds) {
     if (matches[mId].participantB?.isBye) {
-      // Bypass slot in round 0
       if (pIdx < participants.length) {
         const p = participants[pIdx++];
         matches[mId].participantA = {
@@ -169,11 +225,9 @@ export function createDynamicBracket(
           affiliation: p.affiliation,
           photo: p.photo,
         };
-        // Auto resolve bypass!
         matches[mId].winnerId = p.id;
         matches[mId].status = 'completed';
 
-        // Auto pass to next round if linked
         if (matches[mId].nextMatchId && matches[matches[mId].nextMatchId!]) {
           const nextM = matches[matches[mId].nextMatchId!];
           if (matches[mId].nextMatchSlot === 'A') {
@@ -213,24 +267,23 @@ export function createDynamicBracket(
     {
       id: 'finalist_1',
       name: 'Menunggu Hasil...',
-      sourceLabel: 'Finalis 1',
+      sourceLabel: 'Juara 1',
     },
     {
       id: 'finalist_2',
       name: 'Menunggu Hasil...',
-      sourceLabel: 'Finalis 2',
+      sourceLabel: 'Juara 2',
     },
     {
       id: 'finalist_3',
       name: 'Menunggu Hasil...',
-      sourceLabel: 'Finalis 3',
+      sourceLabel: 'Juara 3',
     },
   ];
 
   return { rounds, matches, grandFinalists };
 }
 
-// Backward compatible aliases
 export function createCoffee28Bracket(participants: Participant[]) {
   return createDynamicBracket(participants, { formatType: 'throwdown', bypassPosition: 'last' });
 }

@@ -23,6 +23,7 @@ import {
   Pause,
   RotateCcw,
   Swords,
+  Medal,
 } from 'lucide-react';
 import { clientDb, Tournament, Match, Participant } from '@/lib/client-db';
 import { WinnerCelebrationModal } from '@/components/WinnerCelebrationModal';
@@ -35,18 +36,11 @@ export default function TvBracketPage() {
 
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [loading, setLoading] = useState(true);
-  const [scale, setScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFullView, setIsFullView] = useState(false);
 
   // Selected match for adjudication modal
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
-
-  // Grand Finalist Selection Modal (for Juara 1, 2, 3)
-  const [showGrandFinalModal, setShowGrandFinalModal] = useState(false);
-  const [p1WinnerId, setP1WinnerId] = useState<string>('');
-  const [p2WinnerId, setP2WinnerId] = useState<string>('');
-  const [p3WinnerId, setP3WinnerId] = useState<string>('');
 
   // Celebration Modals
   const [celebrationData, setCelebrationData] = useState<{
@@ -112,23 +106,6 @@ export default function TvBracketPage() {
     fetchTournament();
   }, [tournamentId]);
 
-  // TV Viewport Scaling: Fixed 1920 x 1080 fit to screen without scrolling
-  useEffect(() => {
-    const handleResize = () => {
-      const targetWidth = 1920;
-      const targetHeight = 1080;
-      const windowWidth = window.innerWidth;
-      const windowHeight = window.innerHeight;
-
-      const scaleFactor = Math.min(windowWidth / targetWidth, windowHeight / targetHeight);
-      setScale(scaleFactor);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   // Fullscreen toggle
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -150,6 +127,7 @@ export default function TvBracketPage() {
   const handleSelectWinner = async (match: Match, winnerSlot: 'A' | 'B') => {
     if (!tournament) return;
     const winnerData = winnerSlot === 'A' ? match.participantA : match.participantB;
+    const loserData = winnerSlot === 'A' ? match.participantB : match.participantA;
 
     if (!winnerData || !winnerData.participantId) return;
 
@@ -161,7 +139,7 @@ export default function TvBracketPage() {
 
     let nextStageLabel = '';
 
-    // If match has nextMatchId, forward winner
+    // 1. Forward WINNER to nextMatchId
     if (match.nextMatchId && updatedMatches[match.nextMatchId]) {
       const nextM = { ...updatedMatches[match.nextMatchId] };
       const slot = match.nextMatchSlot || 'A';
@@ -202,12 +180,69 @@ export default function TvBracketPage() {
       nextStageLabel = nextM.label;
     }
 
+    // 2. Forward LOSER to loserMatchId (for 3rd place playoff)
+    if (match.loserMatchId && updatedMatches[match.loserMatchId] && loserData?.participantId) {
+      const loserM = { ...updatedMatches[match.loserMatchId] };
+      const lSlot = match.loserMatchSlot || 'A';
+      const forwardedLoserSlot = {
+        participantId: loserData.participantId,
+        name: loserData.name,
+        affiliation: loserData.affiliation,
+        photo: loserData.photo,
+      };
+
+      if (lSlot === 'A') {
+        loserM.participantA = forwardedLoserSlot;
+      } else {
+        loserM.participantB = forwardedLoserSlot;
+      }
+
+      if (loserM.participantA?.participantId && loserM.participantB?.participantId) {
+        loserM.status = 'ready';
+      }
+      updatedMatches[match.loserMatchId] = loserM;
+    }
+
+    // 3. Check if Grand Final or 3rd Place Match was decided
+    const updatedWinners = { ...(tournament.winners || {}) };
+    const isGrandFinalMatch = match.id.includes('grand_final') || match.label.toLowerCase().includes('grand final');
+    const isThirdPlaceMatch = match.id.includes('third_place') || match.label.toLowerCase().includes('juara 3');
+
+    if (isGrandFinalMatch) {
+      updatedWinners.first = {
+        id: winnerData.participantId,
+        name: winnerData.name || 'Juara 1',
+        affiliation: winnerData.affiliation,
+        photo: winnerData.photo,
+      };
+      if (loserData?.participantId) {
+        updatedWinners.second = {
+          id: loserData.participantId,
+          name: loserData.name || 'Juara 2',
+          affiliation: loserData.affiliation,
+          photo: loserData.photo,
+        };
+      }
+    }
+
+    if (isThirdPlaceMatch) {
+      updatedWinners.third = {
+        id: winnerData.participantId,
+        name: winnerData.name || 'Juara 3',
+        affiliation: winnerData.affiliation,
+        photo: winnerData.photo,
+      };
+    }
+
+    const isAllWinnersDecided = !!updatedWinners.first && !!updatedWinners.second && !!updatedWinners.third;
+
     // Save to local storage
     try {
       const updatedTournament: Tournament = {
         ...tournament,
         matches: updatedMatches,
-        status: 'in_progress',
+        winners: updatedWinners,
+        status: isAllWinnersDecided ? 'completed' : 'in_progress',
         updatedAt: new Date().toISOString(),
       };
       clientDb.saveTournament(updatedTournament);
@@ -226,34 +261,13 @@ export default function TvBracketPage() {
         matchLabel: match.label,
         nextStageLabel,
       });
-    }
-  };
 
-  // Submit Grand Throwdown Winners (Juara 1, 2, 3)
-  const handleSaveGrandWinners = async () => {
-    if (!p1WinnerId || !p2WinnerId || !p3WinnerId) {
-      alert('Pilih Juara 1, 2, dan 3 terlebih dahulu!');
-      return;
-    }
-
-    const first = tournament.participants.find((p) => p.id === p1WinnerId) || null;
-    const second = tournament.participants.find((p) => p.id === p2WinnerId) || null;
-    const third = tournament.participants.find((p) => p.id === p3WinnerId) || null;
-
-    try {
-      const updatedTournament: Tournament = {
-        ...tournament,
-        winners: { first, second, third },
-        status: 'completed',
-        updatedAt: new Date().toISOString(),
-      };
-      clientDb.saveTournament(updatedTournament);
-      setTournament(updatedTournament);
-      setShowGrandFinalModal(false);
-      // Trigger Mega Finale Gimmick!
-      setShowGrandChampionModal(true);
-    } catch (e) {
-      console.error(e);
+      // If Grand Final Winner decided, celebrate champion!
+      if (isGrandFinalMatch) {
+        setTimeout(() => {
+          setShowGrandChampionModal(true);
+        }, 3200);
+      }
     }
   };
 
@@ -271,31 +285,28 @@ export default function TvBracketPage() {
     });
   };
 
-  // Check if a round is Quarter Final or beyond
-  // "hingga sampai ke seperempat final baru tidak ada kolom yang menghilang lagi"
+  // Round detection for Bilateral Wing Mode (Babak 3 & onwards)
+  const r3Index = tournament.rounds.findIndex(
+    (r) =>
+      r.name.toLowerCase().includes('babak 3') ||
+      r.name.toLowerCase().includes('perempat') ||
+      r.name.toLowerCase().includes('quarter')
+  );
+
+  const hasEnteredBabak3 =
+    r3Index >= 0 &&
+    (isRoundCompleted(0) && isRoundCompleted(1) ||
+      isRoundCompleted(r3Index) ||
+      tournament.rounds.slice(r3Index).some((r) => r.matchIds.some((m) => !!tournament.matches[m]?.winnerId)));
+
+  const isBilateralView = !isFullView && hasEnteredBabak3 && tournament.rounds.length >= 4;
+
+  // Linear visible rounds (for before Babak 3 or Full View mode)
   const isQuarterFinalOrLater = (rIndex: number) => {
-    const r = tournament.rounds[rIndex];
-    if (!r) return false;
-    const nameLower = r.name.toLowerCase();
-    if (
-      nameLower.includes('quarter') ||
-      nameLower.includes('seperempat') ||
-      nameLower.includes('semi') ||
-      nameLower.includes('final')
-    ) {
-      return true;
-    }
-    // Also if it's within the last 3 rounds (Quarter, Semi, Final)
-    if (tournament.rounds.length >= 3 && rIndex >= tournament.rounds.length - 3) {
-      return true;
-    }
+    if (tournament.rounds.length >= 3 && rIndex >= tournament.rounds.length - 3) return true;
     return false;
   };
 
-  // Filter visible rounds:
-  // - If isFullView -> show all rounds!
-  // - If Quarter Final or later -> NEVER hide!
-  // - If before Quarter Final -> collapses / disappears when completed!
   const visibleRounds = tournament.rounds.filter((r, idx) => {
     if (isFullView) return true;
     if (isQuarterFinalOrLater(idx)) return true;
@@ -305,206 +316,466 @@ export default function TvBracketPage() {
   const displayedRounds = visibleRounds.length > 0 ? visibleRounds : tournament.rounds;
   const hiddenCount = tournament.rounds.length - displayedRounds.length;
 
-  return (
-    <div className="fixed inset-0 bg-[#0c0806] overflow-hidden flex items-center justify-center select-none">
-      {/* 
-        FIXED 1920 x 1080 TV CANVAS
-        Scales cleanly with CSS transform to fit any TV screen or monitor without scrollbars!
-      */}
+  // Rounds partition for Bilateral Wing View
+  const roundBabak3 = r3Index >= 0 ? tournament.rounds[r3Index] : null;
+  const roundSemi = r3Index >= 0 && r3Index + 1 < tournament.rounds.length ? tournament.rounds[r3Index + 1] : null;
+  const roundFinal = r3Index >= 0 && r3Index + 2 < tournament.rounds.length ? tournament.rounds[r3Index + 2] : null;
+
+  const b3MatchIds = roundBabak3?.matchIds || [];
+  const b3LeftIds = b3MatchIds.slice(0, Math.ceil(b3MatchIds.length / 2));
+  const b3RightIds = b3MatchIds.slice(Math.ceil(b3MatchIds.length / 2));
+
+  const semiLeftId = roundSemi?.matchIds[0];
+  const semiRightId = roundSemi?.matchIds[1];
+
+  const grandFinalMatch = roundFinal ? tournament.matches[roundFinal.matchIds[0]] : null;
+  const thirdPlaceMatch = roundFinal && roundFinal.matchIds.length > 1 ? tournament.matches[roundFinal.matchIds[1]] : null;
+
+  // Render a standard or prominent match card
+  const renderMatchCard = (match: Match | undefined, variant: 'normal' | 'prominent' = 'normal') => {
+    if (!match) return null;
+
+    const isCompleted = match.status === 'completed';
+    const isBye = match.participantB?.isBye;
+    const isProminent = variant === 'prominent';
+
+    if (isBye) {
+      return (
+        <div
+          key={match.id}
+          onClick={() => setSelectedMatch(match)}
+          className={`cursor-pointer shrink-0 border-2 border-dashed text-center transition hover:scale-[1.02] shadow-[0_0_20px_rgba(234,179,8,0.25)] p-3 rounded-2xl ${
+            isCompleted
+              ? 'bg-[#1e130c] border-emerald-500/90'
+              : 'bg-gradient-to-r from-amber-950/90 via-[#2a1b13] to-coffee-900 border-gold-400'
+          }`}
+        >
+          <div className="text-gold-300 uppercase flex items-center justify-center gap-1.5 text-xs font-black">
+            <Sparkles className="w-3.5 h-3.5 text-gold-400 animate-spin" />
+            <span>⚡ BYPASS (LOLOS LANGSUNG)</span>
+          </div>
+          <div className="text-white truncate mt-1.5 text-sm md:text-base font-black">
+            {match.participantA?.name || 'Menunggu Peserta...'}
+          </div>
+          <div className="text-emerald-400 mt-1 flex items-center justify-center gap-1 text-[11px] font-bold">
+            {isCompleted ? '✓ Telah Melaju ke Semifinal' : '✨ Klik untuk Meloloskan'}
+          </div>
+        </div>
+      );
+    }
+
+    return (
       <div
-        style={{
-          width: 1920,
-          height: 1080,
-          transform: `scale(${scale})`,
-          transformOrigin: 'center center',
-        }}
-        className="relative bg-gradient-to-b from-[#140d09] via-[#0d0806] to-[#070403] text-white flex flex-col justify-between p-6 shadow-2xl border border-coffee-800/40"
+        key={match.id}
+        onClick={() => setSelectedMatch(match)}
+        className={`cursor-pointer shrink-0 flex flex-col justify-center transition hover:scale-[1.01] p-3 rounded-2xl ${
+          isProminent ? 'border-2 shadow-lg' : 'border'
+        } ${
+          isCompleted
+            ? 'bg-[#1e130c] border-gold-500/80 shadow-[0_0_15px_rgba(234,179,8,0.2)]'
+            : match.participantA?.participantId && match.participantB?.participantId
+            ? 'bg-[#241710] border-coffee-700 hover:border-gold-400 shadow-md'
+            : 'bg-[#140d09] border-coffee-900 text-coffee-600'
+        }`}
       >
-        {/* =========================================================================
-            HEADER BAR
-        ========================================================================= */}
-        <header className="flex items-center justify-between pb-3 border-b-2 border-gold-500/40">
-          {/* Left Brand Badge */}
-          <div className="flex items-center gap-4 bg-[#1e130c] border border-gold-500/50 rounded-2xl px-5 py-2 shadow-lg">
-            <div className="w-11 h-11 rounded-xl bg-gold-500/20 border border-gold-500/40 flex items-center justify-center text-gold-400">
-              <span className="text-2xl">☕</span>
+        <div className="flex items-center justify-between text-gold-400 mb-1.5 text-xs font-black">
+          <span className="truncate">{match.label}</span>
+          {isCompleted ? (
+            <Check className="text-emerald-400 w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <ChevronRight className="text-coffee-500 w-3.5 h-3.5 shrink-0" />
+          )}
+        </div>
+
+        {/* Participant A */}
+        <div
+          className={`flex items-center justify-between mb-1 px-3 py-1.5 rounded-xl ${
+            match.winnerId === match.participantA?.participantId
+              ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
+              : 'bg-black/50 text-white'
+          }`}
+        >
+          <span className="truncate text-sm md:text-base font-black">
+            {match.participantA?.name || 'Slot Kosong'}
+          </span>
+          {match.winnerId === match.participantA?.participantId && (
+            <Award className="w-3.5 h-3.5 shrink-0 text-coffee-950" />
+          )}
+        </div>
+
+        {/* Participant B */}
+        <div
+          className={`flex items-center justify-between px-3 py-1.5 rounded-xl ${
+            match.winnerId === match.participantB?.participantId
+              ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
+              : 'bg-black/50 text-white'
+          }`}
+        >
+          <span className="truncate text-sm md:text-base font-black">
+            {match.participantB?.name || 'Slot Kosong'}
+          </span>
+          {match.winnerId === match.participantB?.participantId && (
+            <Award className="w-3.5 h-3.5 shrink-0 text-coffee-950" />
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 w-screen h-screen bg-gradient-to-b from-[#140d09] via-[#0d0806] to-[#070403] text-white flex flex-col justify-between p-3 md:p-5 overflow-hidden select-none">
+      {/* =========================================================================
+          TOP HEADER BAR (Full Width Edge-to-Edge)
+      ========================================================================= */}
+      <header className="w-full flex items-center justify-between pb-3 border-b-2 border-gold-500/40">
+        {/* Left Brand Badge */}
+        <div className="flex items-center gap-3 bg-[#1e130c] border border-gold-500/50 rounded-2xl px-4 py-2 shadow-lg">
+          <div className="w-10 h-10 rounded-xl bg-gold-500/20 border border-gold-500/40 flex items-center justify-center text-gold-400">
+            <Trophy className="w-5 h-5 text-gold-400" />
+          </div>
+          <div>
+            <div className="text-lg md:text-xl font-black tracking-tight text-white uppercase truncate max-w-sm">
+              {tournament.title}
             </div>
-            <div>
-              <div className="text-xl font-black tracking-tight text-white uppercase truncate max-w-xs">
-                {tournament.title}
-              </div>
-              <div className="text-[11px] text-gold-300 font-bold tracking-widest uppercase">
-                {tournament.subtitle || 'MANUAL BREWING TOURNAMENT'}
-              </div>
+            <div className="text-[11px] text-gold-300 font-bold tracking-widest uppercase">
+              {tournament.subtitle || 'SPINBRACKET TOURNAMENT ARENA'}
             </div>
           </div>
+        </div>
 
-          {/* Center Stage & Participant Info */}
-          <div className="text-center">
-            <h1 className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-gold-400 to-amber-500 uppercase">
-              BAGAN TURNAMEN ({tournament.participants?.length || 0} PESERTA)
-            </h1>
-            <p className="text-xs text-coffee-300 font-semibold tracking-wider mt-0.5">
-              {tournament.location} &nbsp;|&nbsp; {tournament.date}
-            </p>
-          </div>
+        {/* Center Stage Info */}
+        <div className="text-center">
+          <h1 className="text-xl md:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-gold-400 to-amber-500 uppercase">
+            BAGAN TURNAMEN ({tournament.participants?.length || 0} PESERTA)
+          </h1>
+          <p className="text-xs text-coffee-300 font-semibold tracking-wider mt-0.5">
+            {tournament.location} &nbsp;|&nbsp; {tournament.date}
+          </p>
+        </div>
 
-          {/* Right Action & TV Controls */}
-          <div className="flex items-center gap-3">
-            {/* Toggle Full View / Focus View */}
-            <button
-              onClick={() => setIsFullView((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition shadow ${
-                isFullView
-                  ? 'bg-gold-500 text-coffee-950 border-gold-400 font-black'
-                  : 'bg-[#2a1a12] border-gold-500/40 text-gold-300 hover:bg-[#382318]'
-              }`}
-              title={isFullView ? 'Kembali ke Mode Fokus Auto-Zoom' : 'Tampilkan Semua Babak (Full View)'}
-            >
-              {isFullView ? (
-                <>
-                  <EyeOff className="w-4 h-4" />
-                  <span>Mode Fokus</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="w-4 h-4" />
-                  <span>Full View {hiddenCount > 0 ? `(+${hiddenCount})` : ''}</span>
-                </>
-              )}
-            </button>
-
-            {tournament.winners?.first && (
-              <button
-                onClick={handleOpenGrandFinale}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 text-coffee-950 font-black text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] active:scale-95 transition"
-              >
-                <Trophy className="w-4 h-4" />
-                Lihat Juara
-              </button>
+        {/* Right Action & TV Controls */}
+        <div className="flex items-center gap-2.5">
+          {/* Toggle Full View / Bilateral Focus View */}
+          <button
+            onClick={() => setIsFullView((prev) => !prev)}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition shadow ${
+              isFullView
+                ? 'bg-gold-500 text-coffee-950 border-gold-400 font-black'
+                : 'bg-[#2a1a12] border-gold-500/40 text-gold-300 hover:bg-[#382318]'
+            }`}
+            title={isFullView ? 'Kembali ke Bagan Simetris Kiri-Kanan' : 'Tampilkan Semua Kolom Lengkap'}
+          >
+            {isFullView ? (
+              <>
+                <EyeOff className="w-4 h-4" />
+                <span>Bagan Kiri-Kanan</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" />
+                <span>Full View {hiddenCount > 0 ? `(+${hiddenCount})` : ''}</span>
+              </>
             )}
+          </button>
 
+          {tournament.winners?.first && (
             <button
-              onClick={() => setShowGrandFinalModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2a1a12] border border-gold-500/40 text-gold-300 font-bold text-xs hover:bg-[#382318] transition"
+              onClick={handleOpenGrandFinale}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 text-coffee-950 font-black text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] active:scale-95 transition"
             >
-              <Crown className="w-4 h-4 text-gold-400" />
-              Tentukan Juara 1, 2, 3
+              <Crown className="w-4 h-4" />
+              PODIUM JUARA
             </button>
+          )}
 
-            <Link
-              href={`/tournament/${tournamentId}/wheel`}
-              className="p-2.5 rounded-xl bg-[#1e130c] hover:bg-[#2e1d13] border border-coffee-700 text-gold-300 hover:text-white transition"
-              title="Undian Spinwheel"
-            >
-              <Shuffle className="w-4 h-4" />
-            </Link>
+          <Link
+            href={`/tournament/${tournamentId}/wheel`}
+            className="p-2.5 rounded-xl bg-[#1e130c] hover:bg-[#2e1d13] border border-coffee-700 text-coffee-300 hover:text-white transition"
+            title="Spinwheel Undian"
+          >
+            <Shuffle className="w-4 h-4" />
+          </Link>
 
-            <Link
-              href={`/tournament/${tournamentId}/setup`}
-              className="p-2.5 rounded-xl bg-[#1e130c] hover:bg-[#2e1d13] border border-coffee-700 text-coffee-300 hover:text-white transition"
-              title="Kelola Peserta"
-            >
-              <Users className="w-4 h-4" />
-            </Link>
+          <Link
+            href={`/tournament/${tournamentId}/setup`}
+            className="p-2.5 rounded-xl bg-[#1e130c] hover:bg-[#2e1d13] border border-coffee-700 text-coffee-300 hover:text-white transition"
+            title="Kelola Peserta"
+          >
+            <Users className="w-4 h-4" />
+          </Link>
 
-            <Link
-              href="/dashboard"
-              className="p-2.5 rounded-xl bg-[#1e130c] hover:bg-[#2e1d13] border border-coffee-700 text-coffee-300 hover:text-white transition"
-              title="Dashboard"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
+          <Link
+            href="/dashboard"
+            className="p-2.5 rounded-xl bg-[#1e130c] hover:bg-[#2e1d13] border border-coffee-700 text-coffee-300 hover:text-white transition"
+            title="Dashboard"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
 
-            <button
-              onClick={toggleFullscreen}
-              className="p-2.5 rounded-xl bg-gold-500/20 hover:bg-gold-500/30 border border-gold-500/50 text-gold-300 transition"
-              title="Fullscreen Layar TV"
-            >
-              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-            </button>
+          <button
+            onClick={toggleFullscreen}
+            className="p-2.5 rounded-xl bg-gold-500/20 hover:bg-gold-500/30 border border-gold-500/50 text-gold-300 transition"
+            title="Fullscreen Layar TV"
+          >
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+          </button>
+        </div>
+      </header>
+
+      {/* =========================================================================
+          MAIN ARENA DISPLAY (Dynamic Bilateral Stage OR Full-Width Column Grid)
+      ========================================================================= */}
+      {isBilateralView ? (
+        /* =======================================================================
+           BILATERAL WING ARENA (Sayap Kiri - Piala Emas Tengah - Sayap Kanan)
+        ======================================================================= */
+        <div className="flex-1 w-full grid grid-cols-12 gap-3.5 items-stretch my-2 overflow-hidden">
+          {/* SAYAP KIRI (Cols 1-4) */}
+          <div className="col-span-4 flex items-stretch gap-3 h-full">
+            {/* Column 1: Babak 3 Kiri (Battle 22 & 23) */}
+            <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
+              <div className="text-center bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
+                <div>BABAK 3 (KIRI)</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">PEREMPAT FINAL</div>
+              </div>
+              <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
+                {b3LeftIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
+              </div>
+            </div>
+
+            {/* Column 2: Semifinal Kiri (Battle 25) */}
+            <div className="flex-1 flex flex-col h-full bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2.5 shadow-xl">
+              <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
+                <div>SEMIFINAL 1</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">BATTLE 25</div>
+              </div>
+              <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
+                {semiLeftId && renderMatchCard(tournament.matches[semiLeftId], 'prominent')}
+              </div>
+            </div>
           </div>
-        </header>
 
-        {/* =========================================================================
-            DYNAMIC BRACKET BOARD
-            Automatically auto-zooms / expands visible rounds!
-        ========================================================================= */}
+          {/* PANGGUNG UTAMA & PIALA EMAS (Cols 5-8: Centerpiece) */}
+          <div className="col-span-4 flex flex-col justify-between h-full bg-gradient-to-b from-[#25150b] via-[#1a0e07] to-[#0f0703] rounded-3xl border-2 border-gold-500/80 p-4 shadow-[0_0_60px_rgba(234,179,8,0.35)] relative overflow-hidden">
+            {/* Ambient Radial Golden Glow */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(234,179,8,0.2)_0%,transparent_75%)] pointer-events-none" />
+
+            {/* Grand Golden Trophy Illustration */}
+            <div className="relative z-10 flex flex-col items-center justify-center pt-1 pb-2">
+              <div className="flex items-center justify-center">
+                <span className="text-3xl md:text-4xl text-gold-400/60 select-none">🌿</span>
+                <div className="relative mx-3">
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-600 p-1 shadow-[0_0_40px_rgba(234,179,8,0.7)] flex items-center justify-center animate-vs-glow">
+                    <div className="w-full h-full rounded-full bg-[#160c07] flex items-center justify-center">
+                      <Trophy className="w-12 h-12 md:w-14 md:h-14 text-yellow-300 drop-shadow-[0_0_15px_rgba(234,179,8,0.9)] animate-crown" />
+                    </div>
+                  </div>
+                  <Sparkles className="w-5 h-5 text-yellow-300 absolute -top-1 -right-1 animate-spin" />
+                </div>
+                <span className="text-3xl md:text-4xl text-gold-400/60 select-none scale-x-[-1]">🌿</span>
+              </div>
+
+              <div className="mt-1 text-center">
+                <div className="inline-block px-4 py-0.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 text-coffee-950 font-black text-[11px] md:text-xs tracking-widest uppercase shadow">
+                  CHAMPIONSHIP STAGE • ROAD TO THE THRONE
+                </div>
+              </div>
+            </div>
+
+            {/* The Final Battles: Grand Final & Perebutan Juara 3 */}
+            <div className="relative z-10 flex-1 flex flex-col justify-around gap-2.5 my-1">
+              {/* 1. GRAND FINAL CARD (Juara 1 & 2) */}
+              {grandFinalMatch && (
+                <div
+                  onClick={() => setSelectedMatch(grandFinalMatch)}
+                  className={`cursor-pointer rounded-2xl border-2 p-3.5 transition hover:scale-[1.01] shadow-xl ${
+                    grandFinalMatch.status === 'completed'
+                      ? 'bg-gradient-to-r from-[#2e1d0f] to-[#201309] border-gold-400 shadow-[0_0_25px_rgba(234,179,8,0.5)]'
+                      : grandFinalMatch.participantA?.participantId && grandFinalMatch.participantB?.participantId
+                      ? 'bg-gradient-to-r from-[#2c1a0e] via-[#22140a] to-[#2c1a0e] border-gold-500 hover:border-gold-300 animate-vs-glow'
+                      : 'bg-[#180f0a] border-coffee-800 text-coffee-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gold-500/30">
+                    <div className="flex items-center gap-1.5 text-xs md:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 to-gold-400">
+                      <Crown className="w-4 h-4 text-gold-400" />
+                      <span>GRAND FINAL • PEREBUTAN JUARA 1 & 2</span>
+                    </div>
+                    {grandFinalMatch.status === 'completed' ? (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-gold-300">KLIK UNTUK TANDING</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    {/* Finalis A (Pemenang Battle 25) */}
+                    <div
+                      className={`p-2 rounded-xl flex flex-col items-center justify-center ${
+                        grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId
+                          ? 'bg-gold-500 text-coffee-950 font-black shadow-lg'
+                          : 'bg-black/50 text-white'
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold text-red-400 uppercase">SUDUT MERAH</span>
+                      <span className="text-xs md:text-sm font-black truncate max-w-full">
+                        {grandFinalMatch.participantA?.name || 'Pemenang Battle 25'}
+                      </span>
+                      {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
+                        <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
+                      )}
+                      {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
+                        <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
+                      )}
+                    </div>
+
+                    {/* Finalis B (Pemenang Battle 26) */}
+                    <div
+                      className={`p-2 rounded-xl flex flex-col items-center justify-center ${
+                        grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId
+                          ? 'bg-gold-500 text-coffee-950 font-black shadow-lg'
+                          : 'bg-black/50 text-white'
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold text-blue-400 uppercase">SUDUT BIRU</span>
+                      <span className="text-xs md:text-sm font-black truncate max-w-full">
+                        {grandFinalMatch.participantB?.name || 'Pemenang Battle 26'}
+                      </span>
+                      {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
+                        <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
+                      )}
+                      {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
+                        <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. PEREBUTAN JUARA 3 CARD */}
+              {thirdPlaceMatch && (
+                <div
+                  onClick={() => setSelectedMatch(thirdPlaceMatch)}
+                  className={`cursor-pointer rounded-2xl border-2 p-3 transition hover:scale-[1.01] shadow-lg ${
+                    thirdPlaceMatch.status === 'completed'
+                      ? 'bg-gradient-to-r from-[#24150d] to-[#180e08] border-amber-500/90 shadow-[0_0_20px_rgba(217,119,6,0.4)]'
+                      : thirdPlaceMatch.participantA?.participantId && thirdPlaceMatch.participantB?.participantId
+                      ? 'bg-gradient-to-r from-[#201309] to-[#160c06] border-amber-600/80 hover:border-amber-400'
+                      : 'bg-[#150d08] border-coffee-900 text-coffee-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-amber-600/30">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-amber-300">
+                      <Medal className="w-3.5 h-3.5 text-amber-400" />
+                      <span>PEREBUTAN JUARA 3 (BRONZE MATCH)</span>
+                    </div>
+                    {thirdPlaceMatch.status === 'completed' ? (
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-400">KLIK UNTUK TANDING</span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    <div
+                      className={`p-1.5 rounded-xl flex flex-col items-center justify-center ${
+                        thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId
+                          ? 'bg-amber-500 text-coffee-950 font-black shadow-md'
+                          : 'bg-black/50 text-white'
+                      }`}
+                    >
+                      <span className="text-[9px] font-bold text-red-400 uppercase">KALAH BATTLE 25</span>
+                      <span className="text-xs font-black truncate max-w-full">
+                        {thirdPlaceMatch.participantA?.name || 'Kalah Battle 25'}
+                      </span>
+                      {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId && (
+                        <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
+                      )}
+                    </div>
+
+                    <div
+                      className={`p-1.5 rounded-xl flex flex-col items-center justify-center ${
+                        thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId
+                          ? 'bg-amber-500 text-coffee-950 font-black shadow-md'
+                          : 'bg-black/50 text-white'
+                      }`}
+                    >
+                      <span className="text-[9px] font-bold text-blue-400 uppercase">KALAH BATTLE 26</span>
+                      <span className="text-xs font-black truncate max-w-full">
+                        {thirdPlaceMatch.participantB?.name || 'Kalah Battle 26'}
+                      </span>
+                      {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId && (
+                        <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Center Stage Footer Info */}
+            <div className="relative z-10 pt-1 text-center border-t border-gold-500/30">
+              <div className="text-[11px] font-bold text-gold-300 flex items-center justify-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-gold-400" />
+                <span>Pemenang Battle 25 vs 26 diadu untuk Juara 1 & 2 • Kalah untuk Juara 3</span>
+              </div>
+            </div>
+          </div>
+
+          {/* SAYAP KANAN (Cols 9-12) */}
+          <div className="col-span-4 flex items-stretch gap-3 h-full">
+            {/* Column 3: Semifinal Kanan (Battle 26) */}
+            <div className="flex-1 flex flex-col h-full bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2.5 shadow-xl">
+              <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
+                <div>SEMIFINAL 2</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">BATTLE 26</div>
+              </div>
+              <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
+                {semiRightId && renderMatchCard(tournament.matches[semiRightId], 'prominent')}
+              </div>
+            </div>
+
+            {/* Column 4: Babak 3 Kanan (Battle 24 & Bypass) */}
+            <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
+              <div className="text-center bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
+                <div>BABAK 3 (KANAN)</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">PEREMPAT FINAL</div>
+              </div>
+              <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
+                {b3RightIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* =======================================================================
+           LINEAR FULL-WIDTH COLUMN BOARD (Babak 1, Babak 2, or Full View mode)
+        ======================================================================= */
         <div
           style={{
             gridTemplateColumns: `repeat(${displayedRounds.length}, minmax(0, 1fr))`,
           }}
-          className="grid gap-3.5 h-[870px] items-stretch pt-2 transition-all duration-500"
+          className="flex-1 w-full grid gap-3.5 items-stretch my-2 transition-all duration-500 overflow-hidden"
         >
-          {/* RENDER VISIBLE TOURNAMENT ROUNDS DYNAMICALLY */}
-          {displayedRounds.map((round, rIdx) => {
+          {displayedRounds.map((round) => {
             const matchIds = round.matchIds || [];
             const matchCount = matchIds.length;
-            const colCount = displayedRounds.length;
-
-            // Responsive sizing based on columns count & matches count
-            const isSpaciousCol = colCount <= 3;
-            const isMediumCol = colCount === 4;
-
-            const isLowMatch = matchCount <= 4;
-            const isMediumMatch = matchCount > 4 && matchCount <= 8;
-
-            // Header classes
-            const headerPadClass = isSpaciousCol ? 'py-3 px-3 mb-2.5 rounded-2xl' : 'py-2 px-2 mb-1.5 rounded-xl';
-            const headerTitleClass = isSpaciousCol ? 'text-base md:text-lg font-black' : isMediumCol ? 'text-sm md:text-base font-black' : 'text-xs md:text-sm font-black';
-            const headerSubClass = isSpaciousCol ? 'text-xs font-bold text-coffee-950/90' : 'text-[10px] md:text-[11px] font-bold text-coffee-950/80';
-
-            // Dynamic Card classes
-            const isBigCard = (isSpaciousCol && matchCount <= 6) || isLowMatch;
-            const isMediumCard = (isMediumCol || isMediumMatch) && !isBigCard;
-
-            const cardPadClass = isBigCard
-              ? 'p-3.5 rounded-2xl border-2'
-              : isMediumCard
-              ? 'p-2.5 rounded-xl border-2'
-              : 'px-2.5 py-1.5 rounded-lg border';
-
-            const labelTextClass = isBigCard
-              ? 'text-xs md:text-sm font-black'
-              : isMediumCard
-              ? 'text-xs font-black'
-              : 'text-[11px] font-bold';
-
-            const nameTextClass = isBigCard
-              ? 'text-base md:text-lg font-black tracking-tight'
-              : isMediumCard
-              ? 'text-sm font-black'
-              : 'text-xs font-bold';
-
-            const rowPadClass = isBigCard
-              ? 'px-3 py-2 rounded-xl'
-              : isMediumCard
-              ? 'px-2.5 py-1.5 rounded-lg'
-              : 'px-2 py-0.5 rounded';
-
-            const iconClass = isBigCard ? 'w-4 h-4' : isMediumCard ? 'w-3.5 h-3.5' : 'w-3 h-3';
-
-            const bypassPadClass = isBigCard ? 'p-4 rounded-2xl border-2' : isMediumCard ? 'p-3 rounded-xl border-2' : 'p-2.5 rounded-xl border-2';
-            const bypassTitleClass = isBigCard ? 'text-xs md:text-sm font-black' : 'text-[11px] font-black';
-            const bypassNameClass = isBigCard ? 'text-base md:text-lg font-black' : isMediumCard ? 'text-sm font-black' : 'text-xs font-black';
-            const bypassSubClass = isBigCard ? 'text-xs font-bold' : 'text-[10px] font-bold';
 
             return (
               <div
                 key={`round_${round.index}`}
-                className="flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 overflow-hidden shadow-xl transition-all duration-300"
+                className="flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 overflow-hidden shadow-xl"
               >
                 {/* Round Header */}
-                <div className={`text-center bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-coffee-950 uppercase tracking-wider shadow ${headerPadClass}`}>
-                  <div className={`truncate ${headerTitleClass}`}>{round.name}</div>
-                  <div className={`truncate mt-0.5 ${headerSubClass}`}>
+                <div className="text-center bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-coffee-950 uppercase tracking-wider shadow py-2 px-2 mb-2 rounded-xl">
+                  <div className="truncate text-xs md:text-sm font-black">{round.name}</div>
+                  <div className="truncate mt-0.5 text-[10px] md:text-[11px] font-bold text-coffee-950/80">
                     {round.subTitle}
                   </div>
                 </div>
 
-                {/* Match Cards List (Independent vertical scroll per column) */}
+                {/* Match Cards List */}
                 {(() => {
-                  // Ensure bypass match is always placed at the end of the column
                   const sortedMatchIds = [...matchIds].sort((a, b) => {
                     const isByeA = tournament.matches[a]?.participantB?.isBye ? 1 : 0;
                     const isByeB = tournament.matches[b]?.participantB?.isBye ? 1 : 0;
@@ -517,94 +788,7 @@ export default function TvBracketPage() {
                         matchCount <= 4 ? 'justify-around' : 'justify-start'
                       }`}
                     >
-                      {sortedMatchIds.map((matchId) => {
-                        const match = tournament.matches[matchId];
-                        if (!match) return null;
-
-                        const isCompleted = match.status === 'completed';
-                        const isBye = match.participantB?.isBye;
-
-                        if (isBye) {
-                          return (
-                            <div
-                              key={matchId}
-                              onClick={() => setSelectedMatch(match)}
-                              className={`cursor-pointer shrink-0 border-2 border-dashed text-center transition hover:scale-[1.02] shadow-[0_0_20px_rgba(234,179,8,0.25)] mt-1 ${bypassPadClass} ${
-                                isCompleted
-                                  ? 'bg-[#1e130c] border-emerald-500/90'
-                                  : 'bg-gradient-to-r from-amber-950/90 via-[#2a1b13] to-coffee-900 border-gold-400'
-                              }`}
-                            >
-                              <div className={`text-gold-300 uppercase flex items-center justify-center gap-1.5 ${bypassTitleClass}`}>
-                                <Sparkles className="w-4 h-4 text-gold-400 animate-spin" />
-                                <span>⚡ BYPASS TICKET (LOLOS LANGSUNG)</span>
-                              </div>
-                              <div className={`text-white truncate mt-1.5 ${bypassNameClass}`}>
-                                {match.participantA?.name || 'Menunggu Peserta...'}
-                              </div>
-                              <div className={`text-emerald-400 mt-1 flex items-center justify-center gap-1 ${bypassSubClass}`}>
-                                {isCompleted ? '✓ Telah Lolos ke Babak Selanjutnya' : '✨ Klik untuk Meloloskan Otomatis'}
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={matchId}
-                            onClick={() => setSelectedMatch(match)}
-                            className={`cursor-pointer shrink-0 flex flex-col justify-center transition hover:scale-[1.01] ${cardPadClass} ${
-                              isCompleted
-                                ? 'bg-[#1e130c] border-gold-500/80 shadow-[0_0_12px_rgba(234,179,8,0.2)]'
-                                : match.participantA?.participantId && match.participantB?.participantId
-                                ? 'bg-[#241710] border-coffee-700 hover:border-gold-400'
-                                : 'bg-[#140d09] border-coffee-900 text-coffee-600'
-                            }`}
-                          >
-                            {/* Match Title & Status */}
-                            <div className={`flex items-center justify-between text-gold-400 mb-1.5 ${labelTextClass}`}>
-                              <span className="truncate">{match.label}</span>
-                              {isCompleted ? (
-                                <Check className={`text-emerald-400 shrink-0 ${iconClass}`} />
-                              ) : (
-                                <ChevronRight className={`text-coffee-500 shrink-0 ${iconClass}`} />
-                              )}
-                            </div>
-
-                            {/* Brewer A */}
-                            <div
-                              className={`flex items-center justify-between mb-1 ${rowPadClass} ${
-                                match.winnerId === match.participantA?.participantId
-                                  ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
-                                  : 'bg-black/50 text-white'
-                              }`}
-                            >
-                              <span className={`truncate ${nameTextClass}`}>
-                                {match.participantA?.name || 'Slot Kosong'}
-                              </span>
-                              {match.winnerId === match.participantA?.participantId && (
-                                <Award className={`shrink-0 ${iconClass}`} />
-                              )}
-                            </div>
-
-                            {/* Brewer B */}
-                            <div
-                              className={`flex items-center justify-between ${rowPadClass} ${
-                                match.winnerId === match.participantB?.participantId
-                                  ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
-                                  : 'bg-black/50 text-white'
-                              }`}
-                            >
-                              <span className={`truncate ${nameTextClass}`}>
-                                {match.participantB?.name || 'Slot Kosong'}
-                              </span>
-                              {match.winnerId === match.participantB?.participantId && (
-                                <Award className={`shrink-0 ${iconClass}`} />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                      {sortedMatchIds.map((matchId) => renderMatchCard(tournament.matches[matchId], matchCount <= 4 ? 'prominent' : 'normal'))}
                     </div>
                   );
                 })()}
@@ -612,34 +796,34 @@ export default function TvBracketPage() {
             );
           })}
         </div>
+      )}
 
-        {/* =========================================================================
-            BOTTOM FOOTER STATUS FLOW
-        ========================================================================= */}
-        <footer className="pt-2 border-t border-coffee-800/80 flex items-center justify-between">
-          <div className="flex items-center gap-2 overflow-x-auto">
-            <div className="px-3 py-1 rounded-lg bg-[#221610] text-gold-300 text-xs font-bold border border-gold-500/40">
-              {tournament.participants?.length || 0} PESERTA
-            </div>
-            {tournament.rounds.map((r, i) => (
-              <React.Fragment key={i}>
-                <span className="text-coffee-600">→</span>
-                <div className="px-3 py-1 rounded-lg bg-[#221610] text-gold-300 text-xs font-bold border border-gold-500/40">
-                  {r.name}
-                </div>
-              </React.Fragment>
-            ))}
-            <span className="text-coffee-600">→</span>
-            <div className="px-4 py-1 rounded-lg bg-gradient-to-r from-gold-500 to-amber-500 text-coffee-950 text-xs font-black shadow">
-              JUARA 1, 2, 3 🏆
-            </div>
+      {/* =========================================================================
+          BOTTOM FOOTER BAR
+      ========================================================================= */}
+      <footer className="w-full pt-2 border-t border-coffee-800/80 flex items-center justify-between">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="px-3 py-1 rounded-lg bg-[#221610] text-gold-300 text-xs font-bold border border-gold-500/40">
+            {tournament.participants?.length || 0} PESERTA
           </div>
+          {tournament.rounds.map((r, i) => (
+            <React.Fragment key={i}>
+              <span className="text-coffee-600">→</span>
+              <div className="px-3 py-1 rounded-lg bg-[#221610] text-gold-300 text-xs font-bold border border-gold-500/40">
+                {r.name}
+              </div>
+            </React.Fragment>
+          ))}
+          <span className="text-coffee-600">→</span>
+          <div className="px-4 py-1 rounded-lg bg-gradient-to-r from-gold-500 to-amber-500 text-coffee-950 text-xs font-black shadow">
+            JUARA 1, 2, 3 🏆
+          </div>
+        </div>
 
-          <div className="text-xs text-coffee-400 font-medium">
-            Klik pada kotak pertandingan untuk memilih pemenang secara langsung
-          </div>
-        </footer>
-      </div>
+        <div className="text-xs text-coffee-400 font-medium">
+          Klik pada kotak pertandingan untuk membuka popup arena tanding & memilih pemenang
+        </div>
+      </footer>
 
       {/* =========================================================================
           LIVE MATCH ARENA MODAL (In-Progress Battle & Winner Selection)
@@ -654,7 +838,6 @@ export default function TvBracketPage() {
 
             {/* Top Bar: Live Indicator & Match Duration Stopwatch */}
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-coffee-800/80 pb-4">
-              {/* Pulsing Live Badge */}
               <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-red-950/80 border border-red-500/90 text-red-200 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-live-pulse">
                 <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -663,7 +846,6 @@ export default function TvBracketPage() {
                 {selectedMatch.participantB?.isBye ? 'SLOT BYPASS' : 'LIVE MATCH • SEDANG BERLANGSUNG'}
               </div>
 
-              {/* Stopwatch Timer Widget */}
               {!selectedMatch.participantB?.isBye && (
                 <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 border border-gold-500/40 text-xs shadow-inner">
                   <Timer className="w-4 h-4 text-gold-400 animate-pulse" />
@@ -703,7 +885,6 @@ export default function TvBracketPage() {
 
             {/* Duel Arena Grid */}
             {selectedMatch.participantB?.isBye ? (
-              /* Single Participant Bypass Card */
               <div className="relative z-10 max-w-md mx-auto mb-6 bg-gradient-to-b from-amber-950/70 via-coffee-900 to-coffee-950 border-2 border-gold-400 rounded-3xl p-6 text-center shadow-2xl">
                 <div className="w-28 h-28 mx-auto rounded-full border-4 border-gold-400 overflow-hidden bg-black/60 mb-4 flex items-center justify-center shadow-lg">
                   {selectedMatch.participantA?.photo ? (
@@ -734,7 +915,6 @@ export default function TvBracketPage() {
                 </button>
               </div>
             ) : (
-              /* 2-Participant Battle Stage with VS Clash */
               <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch mb-6">
                 {/* Center "VS" Clash Badge */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none hidden md:flex flex-col items-center justify-center">
@@ -752,13 +932,11 @@ export default function TvBracketPage() {
                   onClick={() => handleSelectWinner(selectedMatch, 'A')}
                   className="cursor-pointer group relative rounded-3xl bg-gradient-to-b from-[#2d120d] via-[#1c0c09] to-[#120705] border-2 border-red-500/80 hover:border-red-400 p-6 flex flex-col items-center transition-all duration-300 shadow-xl active:scale-95 animate-red-corner"
                 >
-                  {/* Corner Badge */}
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/90 border border-red-500 text-red-300 text-xs font-black uppercase tracking-wider mb-4 shadow-[0_0_12px_rgba(239,68,68,0.4)]">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
                     SUDUT MERAH
                   </div>
 
-                  {/* Avatar with Animated Radar Ping */}
                   <div className="relative mb-4">
                     <div className="absolute -inset-2 rounded-full border-2 border-red-500/60 animate-ping opacity-60 pointer-events-none" />
                     <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-red-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(239,68,68,0.6)] flex items-center justify-center">
@@ -772,7 +950,6 @@ export default function TvBracketPage() {
                         <span className="text-5xl">☕</span>
                       )}
                     </div>
-                    {/* Flame Battle Icon */}
                     <div className="absolute -bottom-1 -right-1 bg-red-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
                       <Flame className="w-4 h-4 animate-bounce" />
                     </div>
@@ -785,7 +962,6 @@ export default function TvBracketPage() {
                     {selectedMatch.participantA?.affiliation || '-'}
                   </div>
 
-                  {/* Active In-Progress Indicator */}
                   <div className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold text-red-400 bg-red-950/70 px-3.5 py-1 rounded-full border border-red-800/80">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -794,7 +970,6 @@ export default function TvBracketPage() {
                     Sedang Bertanding
                   </div>
 
-                  {/* Winner Action Button */}
                   <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2">
                     <Award className="w-4 h-4" /> PILIH SEBAGAI PEMENANG
                   </button>
@@ -805,13 +980,11 @@ export default function TvBracketPage() {
                   onClick={() => handleSelectWinner(selectedMatch, 'B')}
                   className="cursor-pointer group relative rounded-3xl bg-gradient-to-b from-[#0f1d30] via-[#0b1422] to-[#060b14] border-2 border-blue-500/80 hover:border-blue-400 p-6 flex flex-col items-center transition-all duration-300 shadow-xl active:scale-95 animate-blue-corner"
                 >
-                  {/* Corner Badge */}
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/90 border border-blue-500 text-blue-300 text-xs font-black uppercase tracking-wider mb-4 shadow-[0_0_12px_rgba(59,130,246,0.4)]">
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
                     SUDUT BIRU
                   </div>
 
-                  {/* Avatar with Animated Radar Ping */}
                   <div className="relative mb-4">
                     <div className="absolute -inset-2 rounded-full border-2 border-blue-500/60 animate-ping opacity-60 pointer-events-none" />
                     <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-blue-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(59,130,246,0.6)] flex items-center justify-center">
@@ -825,7 +998,6 @@ export default function TvBracketPage() {
                         <span className="text-5xl">☕</span>
                       )}
                     </div>
-                    {/* Flame Battle Icon */}
                     <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
                       <Flame className="w-4 h-4 animate-bounce" />
                     </div>
@@ -838,7 +1010,6 @@ export default function TvBracketPage() {
                     {selectedMatch.participantB?.affiliation || '-'}
                   </div>
 
-                  {/* Active In-Progress Indicator */}
                   <div className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold text-blue-400 bg-blue-950/70 px-3.5 py-1 rounded-full border border-blue-800/80">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
@@ -847,7 +1018,6 @@ export default function TvBracketPage() {
                     Sedang Bertanding
                   </div>
 
-                  {/* Winner Action Button */}
                   <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2">
                     <Award className="w-4 h-4" /> PILIH SEBAGAI PEMENANG
                   </button>
@@ -855,7 +1025,6 @@ export default function TvBracketPage() {
               </div>
             )}
 
-            {/* Modal Footer Controls */}
             <div className="relative z-10 pt-2 flex items-center justify-center">
               <button
                 onClick={() => setSelectedMatch(null)}
@@ -869,100 +1038,7 @@ export default function TvBracketPage() {
       )}
 
       {/* =========================================================================
-          GRAND THROWDOWN WINNER SELECTOR MODAL (Juara 1, 2, 3)
-      ========================================================================= */}
-      {showGrandFinalModal && (
-        <div className="fixed inset-0 z-40 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-[#1c120c] border-2 border-gold-500 rounded-3xl p-8 max-w-xl w-full shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="inline-flex p-3 rounded-2xl bg-gold-500/20 text-gold-400 mb-2">
-                <Trophy className="w-8 h-8" />
-              </div>
-              <h3 className="text-2xl font-black text-gold-300">Tentukan Juara 1, 2, dan 3</h3>
-              <p className="text-xs text-coffee-300">
-                Pilih juara turnamen untuk memicu perayaan Grand Finale di layar TV
-              </p>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              {/* JUARA 1 */}
-              <div>
-                <label className="block text-xs font-black text-yellow-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Crown className="w-4 h-4 text-yellow-400" /> JUARA 1 (1ST CHAMPION)
-                </label>
-                <select
-                  value={p1WinnerId}
-                  onChange={(e) => setP1WinnerId(e.target.value)}
-                  className="w-full bg-[#2a1b13] border border-gold-500/70 rounded-xl px-4 py-3 text-white text-sm focus:outline-none"
-                >
-                  <option value="">-- Pilih Juara 1 --</option>
-                  {tournament.participants.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.affiliation || 'Brewer'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* JUARA 2 */}
-              <div>
-                <label className="block text-xs font-black text-slate-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  🥈 JUARA 2 (2ND PLACE)
-                </label>
-                <select
-                  value={p2WinnerId}
-                  onChange={(e) => setP2WinnerId(e.target.value)}
-                  className="w-full bg-[#2a1b13] border border-slate-500/70 rounded-xl px-4 py-3 text-white text-sm focus:outline-none"
-                >
-                  <option value="">-- Pilih Juara 2 --</option>
-                  {tournament.participants.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.affiliation || 'Brewer'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* JUARA 3 */}
-              <div>
-                <label className="block text-xs font-black text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  🥉 JUARA 3 (3RD PLACE)
-                </label>
-                <select
-                  value={p3WinnerId}
-                  onChange={(e) => setP3WinnerId(e.target.value)}
-                  className="w-full bg-[#2a1b13] border border-amber-600/70 rounded-xl px-4 py-3 text-white text-sm focus:outline-none"
-                >
-                  <option value="">-- Pilih Juara 3 --</option>
-                  {tournament.participants.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.affiliation || 'Brewer'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-coffee-800">
-              <button
-                onClick={() => setShowGrandFinalModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSaveGrandWinners}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 text-coffee-950 text-xs font-black shadow-lg transition active:scale-95"
-              >
-                Simpan & Mulai Perayaan Juara 🏆
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================================
-          WINNER POPUP GIMMICK MODAL (Per Match Winner Celebration)
+          WINNER CELEBRATION MODALS & GRAND CHAMPION CEREMONY
       ========================================================================= */}
       <WinnerCelebrationModal
         isOpen={celebrationData.isOpen}
@@ -974,9 +1050,6 @@ export default function TvBracketPage() {
         nextStageLabel={celebrationData.nextStageLabel}
       />
 
-      {/* =========================================================================
-          GRAND CHAMPION FINALE GIMMICK MODAL (Spectacular Podium + Fireworks)
-      ========================================================================= */}
       <GrandChampionModal
         isOpen={showGrandChampionModal}
         onClose={() => setShowGrandChampionModal(false)}
