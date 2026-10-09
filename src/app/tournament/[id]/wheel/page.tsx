@@ -16,9 +16,11 @@ import {
 import { clientDb, Tournament, Participant, Match } from '@/lib/client-db';
 import { SpinWheel } from '@/components/SpinWheel';
 import { showAlert } from '@/lib/sweetalert';
+import { useSessionGuard } from '@/hooks/useSessionGuard';
 
 export default function SpinWheelPage() {
   const router = useRouter();
+  useSessionGuard();
   const params = useParams();
   const tournamentId = params.id as string;
 

@@ -23,9 +23,11 @@ import { clientDb, Tournament } from '@/lib/client-db';
 import { createCoffee28Bracket, createStandardKnockoutBracket } from '@/lib/bracket-generator';
 import { Download, Upload } from 'lucide-react';
 import { showAlert } from '@/lib/sweetalert';
+import { useSessionGuard } from '@/hooks/useSessionGuard';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { handleLogout } = useSessionGuard();
   const [user, setUser] = useState<{ id: string; username: string; name: string } | null>(null);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,11 +62,6 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleLogout = () => {
-    clientDb.logout();
-    router.push('/login');
-  };
 
   const handleSeedSample = () => {
     setSeeding(true);

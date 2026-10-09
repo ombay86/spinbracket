@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getUserByUsername } from '@/lib/db';
+import { getUserByUsername, validateAndRegisterSession } from '@/lib/db';
 import { attachSessionCookie } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const { username, password } = await request.json();
+    const body = await request.json();
+    const { username, password, deviceId, deviceName, forceTakeover } = body;
 
     if (!username || !password) {
       return NextResponse.json({ error: 'Username dan password wajib diisi' }, { status: 400 });
@@ -15,15 +16,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username atau password salah' }, { status: 401 });
     }
 
+    // Determine client IP
+    const forwarded = request.headers.get('x-forwarded-for');
+    const ip = forwarded ? forwarded.split(',')[0].trim() : '127.0.0.1';
+
+    const sessionRes = await validateAndRegisterSession(
+      user.id,
+      deviceId || `dev_${Date.now()}`,
+      deviceName || 'Perangkat Browser',
+      ip,
+      !!forceTakeover
+    );
+
+    if (!sessionRes.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Akun ini sedang aktif digunakan di perangkat lain.',
+          code: 'ACCOUNT_ALREADY_LOGGED_IN',
+          activeDevice: sessionRes.activeDevice,
+          lastActiveAt: sessionRes.lastActiveAt,
+        },
+        { status: 409 }
+      );
+    }
+
     const response = NextResponse.json({
+      success: true,
       user: {
         id: user.id,
         username: user.username,
         name: user.name,
       },
+      sessionId: sessionRes.sessionId,
+      deviceId: sessionRes.user?.activeDeviceId,
+      deviceName: sessionRes.user?.activeDeviceName,
     });
 
-    attachSessionCookie(response, user.id);
+    attachSessionCookie(response, user.id, sessionRes.sessionId!);
     return response;
   } catch (error) {
     console.error('Login error', error);

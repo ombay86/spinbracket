@@ -146,20 +146,51 @@ export const clientDb = {
     if (typeof window === 'undefined') return null;
     try {
       const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) {
-        // Default login as admin for seamless experience
-        const db = loadDb();
-        const admin = db.users[0];
-        if (admin) {
-          localStorage.setItem(SESSION_KEY, JSON.stringify(admin));
-          return admin;
-        }
-        return null;
-      }
+      if (!raw) return null;
       return JSON.parse(raw);
     } catch {
       return null;
     }
+  },
+
+  getDeviceId(): string {
+    if (typeof window === 'undefined') return 'server';
+    let id = localStorage.getItem('spinbracket_device_id');
+    if (!id) {
+      id = `dev_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem('spinbracket_device_id', id);
+    }
+    return id;
+  },
+
+  getDeviceName(): string {
+    if (typeof window === 'undefined') return 'Perangkat Browser';
+    const ua = navigator.userAgent;
+    let os = 'Perangkat Komputer / HP';
+    if (ua.includes('Win')) os = 'Windows PC';
+    else if (ua.includes('Mac')) os = 'Mac / Apple';
+    else if (ua.includes('Android')) os = 'Android Smartphone';
+    else if (ua.includes('iPhone')) os = 'iPhone';
+    else if (ua.includes('iPad')) os = 'iPad';
+    else if (ua.includes('Linux')) os = 'Linux';
+
+    let browser = 'Browser';
+    if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Google Chrome';
+    else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+    else if (ua.includes('Firefox')) browser = 'Firefox';
+    else if (ua.includes('Edg')) browser = 'Microsoft Edge';
+
+    return `${browser} (${os})`;
+  },
+
+  getSessionId(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('spinbracket_session_id');
+  },
+
+  setSessionId(sessionId: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('spinbracket_session_id', sessionId);
   },
 
   login(username: string, password: string): { user?: User; error?: string } {
@@ -199,9 +230,21 @@ export const clientDb = {
     return { user: newUser };
   },
 
-  logout(): void {
+  async logout(): Promise<void> {
     if (typeof window !== 'undefined') {
+      const u = this.getCurrentUser();
+      const sid = this.getSessionId();
       localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem('spinbracket_session_id');
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: u?.id, sessionId: sid }),
+        });
+      } catch (e) {
+        // offline fallback
+      }
     }
   },
 

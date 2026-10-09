@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Trophy, Coffee, Lock, User, ArrowRight } from 'lucide-react';
+import { Trophy, Coffee, Lock, User, ArrowRight, ShieldAlert } from 'lucide-react';
 import { clientDb } from '@/lib/client-db';
+import { showAlert } from '@/lib/sweetalert';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,10 +20,78 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = clientDb.login(username, password);
-      if (result.error) {
-        throw new Error(result.error);
+      const deviceId = clientDb.getDeviceId();
+      const deviceName = clientDb.getDeviceName();
+
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, deviceId, deviceName }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 409) {
+        // System rejected: account already in use on another device!
+        setLoading(false);
+        const activeDevice = data.activeDevice || 'Perangkat Lain';
+        const lastActiveTime = data.lastActiveAt
+          ? new Date(data.lastActiveAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          : 'baru saja';
+
+        const takeover = await showAlert.confirm({
+          title: 'Akses Ditolak: Akun Sedang Digunakan!',
+          html: `
+            <div style="text-align: left; font-size: 13px; line-height: 1.6; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4); padding: 14px 16px; border-radius: 14px; margin-bottom: 14px;">
+              <p style="margin: 0 0 8px 0; color: #fca5a5; font-weight: 700;">
+                Akun <strong>"${username}"</strong> saat ini sedang aktif digunakan di:
+              </p>
+              <div style="background: rgba(0,0,0,0.5); padding: 10px 14px; border-radius: 10px; color: #fef08a; font-weight: 800; border: 1px solid rgba(234,179,8,0.3);">
+                💻 ${activeDevice} <span style="font-weight: 400; color: #c4a482; font-size: 11px;">(Aktif: ${lastActiveTime})</span>
+              </div>
+              <p style="margin: 12px 0 0 0; color: #fecaca; font-size: 12px;">
+                ⚠️ <strong>Kebijakan Sistem:</strong> 1 akun hanya dapat terlogin di 1 perangkat secara bersamaan agar data pertandingan tetap sinkron dan tidak bentrok.
+              </p>
+            </div>
+            <div style="font-size: 13px; color: #e5cbb5; text-align: center;">
+              Apakah Anda ingin <strong>memutus paksa</strong> perangkat tersebut dan masuk di perangkat ini?
+            </div>
+          `,
+          confirmText: '⚠️ Paksa Logout Perangkat Lain & Masuk',
+          cancelText: 'Batalkan Login',
+          isDanger: true,
+          icon: 'warning',
+        });
+
+        if (takeover) {
+          setLoading(true);
+          const forceRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, deviceId, deviceName, forceTakeover: true }),
+          });
+          const forceData = await forceRes.json();
+          if (!forceRes.ok) {
+            throw new Error(forceData.error || 'Gagal mengambil alih sesi');
+          }
+          clientDb.setSessionId(forceData.sessionId);
+          localStorage.setItem('spinbracket_user', JSON.stringify(forceData.user));
+          showAlert.success('Berhasil Masuk!', 'Perangkat lama telah di-logout otomatis.', 2000);
+          setTimeout(() => router.push('/dashboard'), 800);
+          return;
+        } else {
+          setError(`Login ditolak: Akun sedang aktif di ${activeDevice}. Silakan logout dari perangkat tersebut.`);
+          return;
+        }
       }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Username atau password salah');
+      }
+
+      // Login success
+      clientDb.setSessionId(data.sessionId);
+      localStorage.setItem('spinbracket_user', JSON.stringify(data.user));
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan saat login');

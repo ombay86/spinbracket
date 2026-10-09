@@ -8,6 +8,11 @@ export interface User {
   passwordHash: string;
   name: string;
   createdAt: string;
+  activeSessionId?: string | null;
+  activeDeviceId?: string | null;
+  activeDeviceName?: string | null;
+  lastActiveAt?: number | null;
+  lastIp?: string | null;
 }
 
 export interface Participant {
@@ -140,6 +145,12 @@ async function ensurePgSchema(pool: Pool) {
       INSERT INTO users (id, username, password_hash, name)
       VALUES ('user_admin', 'admin', 'admin123', 'Panitia Turnamen')
       ON CONFLICT (id) DO NOTHING;
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS active_session_id VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS active_device_id VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS active_device_name VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at BIGINT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS last_ip VARCHAR(255);
     `);
     pgInitialized = true;
   } catch (err) {
@@ -215,6 +226,11 @@ export async function getUserByUsername(username: string): Promise<User | undefi
       passwordHash: r.password_hash,
       name: r.name,
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      activeSessionId: r.active_session_id || null,
+      activeDeviceId: r.active_device_id || null,
+      activeDeviceName: r.active_device_name || null,
+      lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
+      lastIp: r.last_ip || null,
     };
   }
 
@@ -235,6 +251,11 @@ export async function getUserById(id: string): Promise<User | undefined> {
       passwordHash: r.password_hash,
       name: r.name,
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      activeSessionId: r.active_session_id || null,
+      activeDeviceId: r.active_device_id || null,
+      activeDeviceName: r.active_device_name || null,
+      lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
+      lastIp: r.last_ip || null,
     };
   }
 
@@ -361,4 +382,183 @@ export async function deleteTournament(id: string, userId: string): Promise<bool
     return true;
   }
   return false;
+}
+
+/* ========================================================
+   SINGLE-DEVICE ACTIVE SESSION CONTROL
+======================================================== */
+export const SESSION_INACTIVITY_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
+export interface ValidateSessionResult {
+  allowed: boolean;
+  reason?: 'ACCOUNT_ALREADY_LOGGED_IN' | 'INVALID_CREDENTIALS';
+  activeDevice?: string;
+  lastActiveAt?: number;
+  sessionId?: string;
+  user?: User;
+}
+
+export async function validateAndRegisterSession(
+  userId: string,
+  deviceId: string,
+  deviceName: string,
+  ip?: string,
+  forceTakeover: boolean = false
+): Promise<ValidateSessionResult> {
+  const pool = getPgPool();
+  const now = Date.now();
+
+  if (pool) {
+    await ensurePgSchema(pool);
+    const res = await pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (res.rows.length === 0) return { allowed: false, reason: 'INVALID_CREDENTIALS' };
+    const r = res.rows[0];
+    const user: User = {
+      id: r.id,
+      username: r.username,
+      passwordHash: r.password_hash,
+      name: r.name,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+      activeSessionId: r.active_session_id || null,
+      activeDeviceId: r.active_device_id || null,
+      activeDeviceName: r.active_device_name || null,
+      lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
+      lastIp: r.last_ip || null,
+    };
+
+    const hasActiveSession =
+      !!user.activeSessionId &&
+      !!user.lastActiveAt &&
+      now - user.lastActiveAt < SESSION_INACTIVITY_TIMEOUT_MS;
+
+    const isSameDevice = user.activeDeviceId === deviceId;
+
+    if (hasActiveSession && !isSameDevice && !forceTakeover) {
+      return {
+        allowed: false,
+        reason: 'ACCOUNT_ALREADY_LOGGED_IN',
+        activeDevice: user.activeDeviceName || 'Perangkat Lain',
+        lastActiveAt: user.lastActiveAt || undefined,
+      };
+    }
+
+    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    await pool.query(
+      `UPDATE users SET 
+        active_session_id = $1, 
+        active_device_id = $2, 
+        active_device_name = $3, 
+        last_active_at = $4, 
+        last_ip = $5 
+       WHERE id = $6`,
+      [sessionId, deviceId, deviceName, now, ip || null, userId]
+    );
+
+    user.activeSessionId = sessionId;
+    user.activeDeviceId = deviceId;
+    user.activeDeviceName = deviceName;
+    user.lastActiveAt = now;
+    user.lastIp = ip || null;
+
+    return { allowed: true, sessionId, user };
+  }
+
+  // File DB fallback
+  const db = ensureFileDb();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return { allowed: false, reason: 'INVALID_CREDENTIALS' };
+
+  const hasActiveSession =
+    !!user.activeSessionId &&
+    !!user.lastActiveAt &&
+    now - user.lastActiveAt < SESSION_INACTIVITY_TIMEOUT_MS;
+
+  const isSameDevice = user.activeDeviceId === deviceId;
+
+  if (hasActiveSession && !isSameDevice && !forceTakeover) {
+    return {
+      allowed: false,
+      reason: 'ACCOUNT_ALREADY_LOGGED_IN',
+      activeDevice: user.activeDeviceName || 'Perangkat Lain',
+      lastActiveAt: user.lastActiveAt || undefined,
+    };
+  }
+
+  const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  user.activeSessionId = sessionId;
+  user.activeDeviceId = deviceId;
+  user.activeDeviceName = deviceName;
+  user.lastActiveAt = now;
+  user.lastIp = ip || null;
+
+  writeFileDb(db);
+  return { allowed: true, sessionId, user };
+}
+
+export async function heartbeatUserSession(
+  userId: string,
+  sessionId: string,
+  ip?: string
+): Promise<{ valid: boolean; reason?: string }> {
+  const pool = getPgPool();
+  const now = Date.now();
+
+  if (pool) {
+    await ensurePgSchema(pool);
+    const res = await pool.query('SELECT active_session_id FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (res.rows.length === 0) return { valid: false, reason: 'USER_NOT_FOUND' };
+    const activeSess = res.rows[0].active_session_id;
+
+    if (!activeSess || activeSess !== sessionId) {
+      return { valid: false, reason: 'SESSION_TAKEN_OVER' };
+    }
+
+    await pool.query(
+      'UPDATE users SET last_active_at = $1, last_ip = COALESCE($2, last_ip) WHERE id = $3',
+      [now, ip || null, userId]
+    );
+    return { valid: true };
+  }
+
+  const db = ensureFileDb();
+  const user = db.users.find((u) => u.id === userId);
+  if (!user) return { valid: false, reason: 'USER_NOT_FOUND' };
+
+  if (!user.activeSessionId || user.activeSessionId !== sessionId) {
+    return { valid: false, reason: 'SESSION_TAKEN_OVER' };
+  }
+
+  user.lastActiveAt = now;
+  if (ip) user.lastIp = ip;
+  writeFileDb(db);
+  return { valid: true };
+}
+
+export async function clearUserActiveSession(userId: string, sessionId?: string): Promise<void> {
+  const pool = getPgPool();
+  if (pool) {
+    await ensurePgSchema(pool);
+    if (sessionId) {
+      await pool.query(
+        'UPDATE users SET active_session_id = NULL, last_active_at = NULL WHERE id = $1 AND active_session_id = $2',
+        [userId, sessionId]
+      );
+    } else {
+      await pool.query(
+        'UPDATE users SET active_session_id = NULL, last_active_at = NULL WHERE id = $1',
+        [userId]
+      );
+    }
+    return;
+  }
+
+  const db = ensureFileDb();
+  const user = db.users.find((u) => u.id === userId);
+  if (user) {
+    if (!sessionId || user.activeSessionId === sessionId) {
+      user.activeSessionId = null;
+      user.lastActiveAt = null;
+      writeFileDb(db);
+    }
+  }
 }

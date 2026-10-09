@@ -14,16 +14,31 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const result = clientDb.register(username, password, name);
-      if (result.error) {
-        throw new Error(result.error);
+      const deviceId = clientDb.getDeviceId();
+      const deviceName = clientDb.getDeviceName();
+
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, name, deviceId, deviceName }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Terjadi kesalahan saat pendaftaran');
       }
+
+      clientDb.register(username, password, name);
+      if (data.sessionId) {
+        clientDb.setSessionId(data.sessionId);
+      }
+      localStorage.setItem('spinbracket_user', JSON.stringify(data.user));
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan');

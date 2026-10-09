@@ -20,6 +20,7 @@ import {
 import { clientDb, Tournament, Participant } from '@/lib/client-db';
 import { createDynamicBracket } from '@/lib/bracket-generator';
 import { showAlert } from '@/lib/sweetalert';
+import { useSessionGuard } from '@/hooks/useSessionGuard';
 
 const sampleNames = [
   'Dimas Aditya', 'Siti Rahma', 'Budi Santoso', 'Rian Pratama',
@@ -43,6 +44,7 @@ const sampleShops = [
 
 export default function ParticipantSetupPage() {
   const router = useRouter();
+  useSessionGuard();
   const params = useParams();
   const tournamentId = params.id as string;
 

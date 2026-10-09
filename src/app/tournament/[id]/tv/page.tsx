@@ -29,9 +29,11 @@ import { clientDb, Tournament, Match, Participant } from '@/lib/client-db';
 import { WinnerCelebrationModal } from '@/components/WinnerCelebrationModal';
 import { GrandChampionModal } from '@/components/GrandChampionModal';
 import { showAlert } from '@/lib/sweetalert';
+import { useSessionGuard } from '@/hooks/useSessionGuard';
 
 export default function TvBracketPage() {
   const router = useRouter();
+  useSessionGuard();
   const params = useParams();
   const tournamentId = params.id as string;
 

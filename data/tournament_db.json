@@ -5,7 +5,12 @@
       "username": "admin",
       "passwordHash": "admin123",
       "name": "Panitia Turnamen",
-      "createdAt": "2026-10-09T04:19:53.691Z"
+      "createdAt": "2026-10-09T04:19:53.691Z",
+      "activeSessionId": null,
+      "activeDeviceId": "dev_A",
+      "activeDeviceName": "Laptop A",
+      "lastActiveAt": null,
+      "lastIp": "::1"
     }
   ],
   "tournaments": [
