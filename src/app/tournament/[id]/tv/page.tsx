@@ -17,6 +17,12 @@ import {
   Users,
   Eye,
   EyeOff,
+  Flame,
+  Timer,
+  Play,
+  Pause,
+  RotateCcw,
+  Swords,
 } from 'lucide-react';
 import { clientDb, Tournament, Match, Participant } from '@/lib/client-db';
 import { WinnerCelebrationModal } from '@/components/WinnerCelebrationModal';
@@ -57,6 +63,34 @@ export default function TvBracketPage() {
   });
 
   const [showGrandChampionModal, setShowGrandChampionModal] = useState(false);
+
+  // Live Battle Timer state for in-progress match popup
+  const [battleSeconds, setBattleSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(true);
+
+  // Auto start and reset timer when selectedMatch opens
+  useEffect(() => {
+    if (selectedMatch) {
+      setBattleSeconds(0);
+      setIsTimerRunning(true);
+    }
+  }, [selectedMatch?.id]);
+
+  useEffect(() => {
+    let interval: any;
+    if (selectedMatch && isTimerRunning) {
+      interval = setInterval(() => {
+        setBattleSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [selectedMatch, isTimerRunning]);
+
+  const formatTimer = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   // Fetch tournament data
   const fetchTournament = () => {
@@ -608,29 +642,70 @@ export default function TvBracketPage() {
       </div>
 
       {/* =========================================================================
-          MATCH ADJUDICATION MODAL (Choose Winner for a Match)
+          LIVE MATCH ARENA MODAL (In-Progress Battle & Winner Selection)
       ========================================================================= */}
       {selectedMatch && (
-        <div className="fixed inset-0 z-40 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-[#1c120c] border-2 border-gold-500/80 rounded-3xl p-6 max-w-2xl w-full shadow-2xl text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-500/20 text-gold-300 border border-gold-500/40 text-[11px] font-bold uppercase mb-2">
-              <Sparkles className="w-3.5 h-3.5" />
-              {selectedMatch.participantB?.isBye
-                ? 'SLOT BYPASS (LOLOS OTOMATIS KARENA JUMLAH GANJIL)'
-                : 'PENENTUAN PEMENANG PERTANDINGAN'}
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-300">
+          <div className="relative bg-gradient-to-b from-[#1e130c] via-[#140c07] to-[#0c0806] border-2 border-gold-500/90 rounded-[2.5rem] p-6 md:p-8 max-w-4xl w-full shadow-[0_0_80px_rgba(234,179,8,0.35)] text-center overflow-hidden">
+            {/* Ambient Lighting Gradients */}
+            <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-red-600/15 blur-3xl pointer-events-none" />
+            <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-gold-500/10 blur-3xl pointer-events-none" />
+
+            {/* Top Bar: Live Indicator & Match Duration Stopwatch */}
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-coffee-800/80 pb-4">
+              {/* Pulsing Live Badge */}
+              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-red-950/80 border border-red-500/90 text-red-200 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-live-pulse">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                {selectedMatch.participantB?.isBye ? 'SLOT BYPASS' : 'LIVE MATCH • SEDANG BERLANGSUNG'}
+              </div>
+
+              {/* Stopwatch Timer Widget */}
+              {!selectedMatch.participantB?.isBye && (
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 border border-gold-500/40 text-xs shadow-inner">
+                  <Timer className="w-4 h-4 text-gold-400 animate-pulse" />
+                  <span className="text-[11px] font-bold text-coffee-300 uppercase tracking-wider">Durasi Sesi:</span>
+                  <span className="font-mono font-black text-base text-gold-300 tracking-wider">
+                    {formatTimer(battleSeconds)}
+                  </span>
+                  <button
+                    onClick={() => setIsTimerRunning(!isTimerRunning)}
+                    className="p-1 rounded-md hover:bg-gold-500/20 text-gold-400 transition"
+                    title={isTimerRunning ? 'Jeda Timer' : 'Lanjutkan Timer'}
+                  >
+                    {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => setBattleSeconds(0)}
+                    className="p-1 rounded-md hover:bg-gold-500/20 text-coffee-400 hover:text-gold-400 transition"
+                    title="Reset Timer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
 
-            <h3 className="text-2xl font-black text-gold-300 mb-1">{selectedMatch.label}</h3>
-            <p className="text-xs text-coffee-300 mb-6">
-              {selectedMatch.participantB?.isBye
-                ? 'Peserta ini berhak langsung lolos (bypass) ke babak berikutnya tanpa bertanding:'
-                : 'Pilih salah satu peserta untuk melaju ke babak berikutnya:'}
-            </p>
+            {/* Match Label & Stage Info */}
+            <div className="relative z-10 mb-6">
+              <h3 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-gold-300 to-amber-400 tracking-tight drop-shadow mb-1">
+                {selectedMatch.label}
+              </h3>
+              <p className="text-xs md:text-sm text-coffee-300 font-medium">
+                {selectedMatch.participantB?.isBye
+                  ? 'Peserta ini berhak langsung melaju ke babak berikutnya tanpa tanding:'
+                  : 'Sesi tanding sedang berlangsung di panggung. Klik nama peserta untuk menentukan pemenang saat penilaian selesai.'}
+              </p>
+            </div>
 
+            {/* Duel Arena Grid */}
             {selectedMatch.participantB?.isBye ? (
               /* Single Participant Bypass Card */
-              <div className="max-w-md mx-auto mb-6 bg-gradient-to-b from-amber-950/70 to-coffee-950 border-2 border-gold-400 rounded-3xl p-6 text-center shadow-2xl">
-                <div className="w-24 h-24 mx-auto rounded-full border-4 border-gold-400 overflow-hidden bg-black/60 mb-3 flex items-center justify-center shadow-lg">
+              <div className="relative z-10 max-w-md mx-auto mb-6 bg-gradient-to-b from-amber-950/70 via-coffee-900 to-coffee-950 border-2 border-gold-400 rounded-3xl p-6 text-center shadow-2xl">
+                <div className="w-28 h-28 mx-auto rounded-full border-4 border-gold-400 overflow-hidden bg-black/60 mb-4 flex items-center justify-center shadow-lg">
                   {selectedMatch.participantA?.photo ? (
                     <img
                       src={selectedMatch.participantA.photo}
@@ -638,99 +713,157 @@ export default function TvBracketPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-4xl">⚡</span>
+                    <span className="text-5xl">⚡</span>
                   )}
                 </div>
 
-                <div className="text-xl font-black text-white mb-1">
+                <div className="text-2xl font-black text-white mb-1">
                   {selectedMatch.participantA?.name || 'Peserta Belum Diundi'}
                 </div>
-                <div className="text-xs text-coffee-300 mb-5">
+                <div className="text-xs text-coffee-300 mb-6">
                   {selectedMatch.participantA?.affiliation || '-'}
                 </div>
 
                 <button
                   disabled={!selectedMatch.participantA?.participantId}
                   onClick={() => handleSelectWinner(selectedMatch, 'A')}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-coffee-950 font-black text-sm shadow-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-coffee-950 font-black text-sm shadow-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <Sparkles className="w-4 h-4" />
                   LOLOSKAN SEKARANG (BYPASS KE BABAK BERIKUTNYA)
                 </button>
               </div>
             ) : (
-              /* Standard 2-Participant Match */
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                {/* Brewer A */}
+              /* 2-Participant Battle Stage with VS Clash */
+              <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch mb-6">
+                {/* Center "VS" Clash Badge */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none hidden md:flex flex-col items-center justify-center">
+                  <div className="absolute w-24 h-24 rounded-full border-2 border-gold-400/40 animate-ping pointer-events-none" />
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 via-amber-500 to-amber-600 border-4 border-[#140c07] text-coffee-950 font-black text-xl flex items-center justify-center shadow-[0_0_30px_rgba(234,179,8,0.85)] animate-vs-glow">
+                    VS
+                  </div>
+                  <div className="mt-1 px-3 py-0.5 rounded-full bg-black/90 border border-gold-500/60 text-[10px] font-black text-gold-300 uppercase tracking-widest shadow">
+                    ARENA DUEL
+                  </div>
+                </div>
+
+                {/* RED CORNER (Sudut Merah) */}
                 <div
                   onClick={() => handleSelectWinner(selectedMatch, 'A')}
-                  className="cursor-pointer group rounded-2xl bg-[#281911] hover:bg-gold-500/20 border-2 border-coffee-700 hover:border-gold-400 p-5 flex flex-col items-center transition shadow-lg active:scale-95"
+                  className="cursor-pointer group relative rounded-3xl bg-gradient-to-b from-[#2d120d] via-[#1c0c09] to-[#120705] border-2 border-red-500/80 hover:border-red-400 p-6 flex flex-col items-center transition-all duration-300 shadow-xl active:scale-95 animate-red-corner"
                 >
-                  <div className="w-24 h-24 rounded-full border-4 border-red-500/80 overflow-hidden bg-black/50 mb-3 flex items-center justify-center">
-                    {selectedMatch.participantA?.photo ? (
-                      <img
-                        src={selectedMatch.participantA.photo}
-                        alt={selectedMatch.participantA.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-4xl">☕</span>
-                    )}
+                  {/* Corner Badge */}
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/90 border border-red-500 text-red-300 text-xs font-black uppercase tracking-wider mb-4 shadow-[0_0_12px_rgba(239,68,68,0.4)]">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    SUDUT MERAH
                   </div>
-                  <div className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">
-                    Sudut Merah
+
+                  {/* Avatar with Animated Radar Ping */}
+                  <div className="relative mb-4">
+                    <div className="absolute -inset-2 rounded-full border-2 border-red-500/60 animate-ping opacity-60 pointer-events-none" />
+                    <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-red-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(239,68,68,0.6)] flex items-center justify-center">
+                      {selectedMatch.participantA?.photo ? (
+                        <img
+                          src={selectedMatch.participantA.photo}
+                          alt={selectedMatch.participantA.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                        />
+                      ) : (
+                        <span className="text-5xl">☕</span>
+                      )}
+                    </div>
+                    {/* Flame Battle Icon */}
+                    <div className="absolute -bottom-1 -right-1 bg-red-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
+                      <Flame className="w-4 h-4 animate-bounce" />
+                    </div>
                   </div>
-                  <div className="text-lg font-black text-white group-hover:text-gold-300 mb-1">
+
+                  <div className="text-xl md:text-2xl font-black text-white group-hover:text-red-300 transition mb-1 text-center line-clamp-1">
                     {selectedMatch.participantA?.name || 'Slot Kosong'}
                   </div>
-                  <div className="text-xs text-coffee-300 mb-3">
+                  <div className="text-xs text-coffee-300 mb-5 text-center font-medium line-clamp-1">
                     {selectedMatch.participantA?.affiliation || '-'}
                   </div>
 
-                  <button className="px-5 py-2 rounded-xl bg-gold-500 text-coffee-950 font-black text-xs group-hover:bg-gold-400 transition shadow flex items-center gap-1.5">
-                    <Award className="w-3.5 h-3.5" /> PILIH PEMENANG
+                  {/* Active In-Progress Indicator */}
+                  <div className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold text-red-400 bg-red-950/70 px-3.5 py-1 rounded-full border border-red-800/80">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                    Sedang Bertanding
+                  </div>
+
+                  {/* Winner Action Button */}
+                  <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2">
+                    <Award className="w-4 h-4" /> PILIH SEBAGAI PEMENANG
                   </button>
                 </div>
 
-                {/* Brewer B */}
+                {/* BLUE CORNER (Sudut Biru) */}
                 <div
                   onClick={() => handleSelectWinner(selectedMatch, 'B')}
-                  className="cursor-pointer group rounded-2xl bg-[#281911] hover:bg-gold-500/20 border-2 border-coffee-700 hover:border-gold-400 p-5 flex flex-col items-center transition shadow-lg active:scale-95"
+                  className="cursor-pointer group relative rounded-3xl bg-gradient-to-b from-[#0f1d30] via-[#0b1422] to-[#060b14] border-2 border-blue-500/80 hover:border-blue-400 p-6 flex flex-col items-center transition-all duration-300 shadow-xl active:scale-95 animate-blue-corner"
                 >
-                  <div className="w-24 h-24 rounded-full border-4 border-blue-500/80 overflow-hidden bg-black/50 mb-3 flex items-center justify-center">
-                    {selectedMatch.participantB?.photo ? (
-                      <img
-                        src={selectedMatch.participantB.photo}
-                        alt={selectedMatch.participantB.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-4xl">☕</span>
-                    )}
+                  {/* Corner Badge */}
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/90 border border-blue-500 text-blue-300 text-xs font-black uppercase tracking-wider mb-4 shadow-[0_0_12px_rgba(59,130,246,0.4)]">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                    SUDUT BIRU
                   </div>
-                  <div className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">
-                    Sudut Biru
+
+                  {/* Avatar with Animated Radar Ping */}
+                  <div className="relative mb-4">
+                    <div className="absolute -inset-2 rounded-full border-2 border-blue-500/60 animate-ping opacity-60 pointer-events-none" />
+                    <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-blue-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(59,130,246,0.6)] flex items-center justify-center">
+                      {selectedMatch.participantB?.photo ? (
+                        <img
+                          src={selectedMatch.participantB.photo}
+                          alt={selectedMatch.participantB.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                        />
+                      ) : (
+                        <span className="text-5xl">☕</span>
+                      )}
+                    </div>
+                    {/* Flame Battle Icon */}
+                    <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
+                      <Flame className="w-4 h-4 animate-bounce" />
+                    </div>
                   </div>
-                  <div className="text-lg font-black text-white group-hover:text-gold-300 mb-1">
+
+                  <div className="text-xl md:text-2xl font-black text-white group-hover:text-blue-300 transition mb-1 text-center line-clamp-1">
                     {selectedMatch.participantB?.name || 'Slot Kosong'}
                   </div>
-                  <div className="text-xs text-coffee-300 mb-3">
+                  <div className="text-xs text-coffee-300 mb-5 text-center font-medium line-clamp-1">
                     {selectedMatch.participantB?.affiliation || '-'}
                   </div>
 
-                  <button className="px-5 py-2 rounded-xl bg-gold-500 text-coffee-950 font-black text-xs group-hover:bg-gold-400 transition shadow flex items-center gap-1.5">
-                    <Award className="w-3.5 h-3.5" /> PILIH PEMENANG
+                  {/* Active In-Progress Indicator */}
+                  <div className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold text-blue-400 bg-blue-950/70 px-3.5 py-1 rounded-full border border-blue-800/80">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
+                    Sedang Bertanding
+                  </div>
+
+                  {/* Winner Action Button */}
+                  <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2">
+                    <Award className="w-4 h-4" /> PILIH SEBAGAI PEMENANG
                   </button>
                 </div>
               </div>
             )}
 
-            <button
-              onClick={() => setSelectedMatch(null)}
-              className="px-6 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
-            >
-              Tutup / Batal
-            </button>
+            {/* Modal Footer Controls */}
+            <div className="relative z-10 pt-2 flex items-center justify-center">
+              <button
+                onClick={() => setSelectedMatch(null)}
+                className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition active:scale-95"
+              >
+                Kembali ke Bagan Turnamen
+              </button>
+            </div>
           </div>
         </div>
       )}
