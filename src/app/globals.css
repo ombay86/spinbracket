@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0d0907;
+  --foreground: #f4ebe2;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #18100c;
+}
+::-webkit-scrollbar-thumb {
+  background: #442e22;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #604231;
+}
+
+/* Custom internal scrollbar for tournament columns */
+.column-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234, 179, 8, 0.35) rgba(24, 16, 12, 0.5);
+}
+.column-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.column-scrollbar::-webkit-scrollbar-track {
+  background: rgba(24, 16, 12, 0.5);
+  border-radius: 4px;
+}
+.column-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(234, 179, 8, 0.35);
+  border-radius: 4px;
+}
+.column-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 179, 8, 0.75);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(234, 179, 8, 0.4), 0 0 50px rgba(234, 179, 8, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(234, 179, 8, 0.7), 0 0 90px rgba(234, 179, 8, 0.4);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes crownBounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.08);
+  }
+}
+
+.animate-crown {
+  animation: crownBounce 2s infinite ease-in-out;
+}

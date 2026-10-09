@@ -1,0 +1,2691 @@
+{
+  "users": [
+    {
+      "id": "user_admin",
+      "username": "admin",
+      "passwordHash": "admin123",
+      "name": "Panitia Turnamen",
+      "createdAt": "2026-10-09T04:19:53.691Z"
+    }
+  ],
+  "tournaments": [
+    {
+      "id": "trn_1791520064380_i1zt",
+      "userId": "user_admin",
+      "title": "Manual Brewing Throwdown",
+      "subtitle": "Manual Brewing Throwdown Competition",
+      "location": "Main Stage",
+      "date": "10 - 11 Oktober 2026",
+      "format": "knockout-standard",
+      "status": "in_progress",
+      "participants": [
+        {
+          "id": "p_1791520072327_1",
+          "name": "Si A",
+          "affiliation": "",
+          "photo": "",
+          "seed": 1
+        },
+        {
+          "id": "p_1791520076371_2",
+          "name": "Si B",
+          "affiliation": "",
+          "photo": "",
+          "seed": 2
+        },
+        {
+          "id": "p_1791520078619_3",
+          "name": "Si C",
+          "affiliation": "",
+          "photo": "",
+          "seed": 3
+        },
+        {
+          "id": "p_1791520080452_4",
+          "name": "Si D",
+          "affiliation": "",
+          "photo": "",
+          "seed": 4
+        },
+        {
+          "id": "p_1791520082667_5",
+          "name": "Si E",
+          "affiliation": "",
+          "photo": "",
+          "seed": 5
+        },
+        {
+          "id": "p_1791520085080_6",
+          "name": "Si F",
+          "affiliation": "",
+          "photo": "",
+          "seed": 6
+        },
+        {
+          "id": "p_1791520087064_7",
+          "name": "Si G",
+          "affiliation": "",
+          "photo": "",
+          "seed": 7
+        },
+        {
+          "id": "p_1791520089647_8",
+          "name": "Si H",
+          "affiliation": "",
+          "photo": "",
+          "seed": 8
+        },
+        {
+          "id": "p_1791520094693_9",
+          "name": "Si I",
+          "affiliation": "",
+          "photo": "",
+          "seed": 9
+        },
+        {
+          "id": "p_1791520097352_10",
+          "name": "Si J",
+          "affiliation": "",
+          "photo": "",
+          "seed": 10
+        },
+        {
+          "id": "p_1791520101020_11",
+          "name": "Si K",
+          "affiliation": "",
+          "photo": "",
+          "seed": 11
+        },
+        {
+          "id": "p_1791520103588_12",
+          "name": "Si L",
+          "affiliation": "",
+          "photo": "",
+          "seed": 12
+        },
+        {
+          "id": "p_1791520105696_13",
+          "name": "Si M",
+          "affiliation": "",
+          "photo": "",
+          "seed": 13
+        },
+        {
+          "id": "p_1791520107608_14",
+          "name": "Si N",
+          "affiliation": "",
+          "photo": "",
+          "seed": 14
+        },
+        {
+          "id": "p_1791520111465_15",
+          "name": "Si O",
+          "affiliation": "",
+          "photo": "",
+          "seed": 15
+        },
+        {
+          "id": "p_1791520117069_16",
+          "name": "Si P",
+          "affiliation": "",
+          "photo": "",
+          "seed": 16
+        },
+        {
+          "id": "p_1791520121885_17",
+          "name": "Si Q",
+          "affiliation": "",
+          "photo": "",
+          "seed": 17
+        },
+        {
+          "id": "p_1791520127385_18",
+          "name": "Si R",
+          "affiliation": "",
+          "photo": "",
+          "seed": 18
+        },
+        {
+          "id": "p_1791520129802_19",
+          "name": "Si S",
+          "affiliation": "",
+          "photo": "",
+          "seed": 19
+        },
+        {
+          "id": "p_1791520134181_20",
+          "name": "Si T",
+          "affiliation": "",
+          "photo": "",
+          "seed": 20
+        },
+        {
+          "id": "p_1791520136457_21",
+          "name": "Si U",
+          "affiliation": "",
+          "photo": "",
+          "seed": 21
+        },
+        {
+          "id": "p_1791520138777_22",
+          "name": "Si V",
+          "affiliation": "",
+          "photo": "",
+          "seed": 22
+        },
+        {
+          "id": "p_1791520141445_23",
+          "name": "Si W",
+          "affiliation": "",
+          "photo": "",
+          "seed": 23
+        },
+        {
+          "id": "p_1791520143853_24",
+          "name": "Si X",
+          "affiliation": "",
+          "photo": "",
+          "seed": 24
+        },
+        {
+          "id": "p_1791520146833_25",
+          "name": "Si Y",
+          "affiliation": "",
+          "photo": "",
+          "seed": 25
+        },
+        {
+          "id": "p_1791520148957_26",
+          "name": "Si Z",
+          "affiliation": "",
+          "photo": "",
+          "seed": 26
+        },
+        {
+          "id": "p_1791520152981_27",
+          "name": "Si AA",
+          "affiliation": "",
+          "photo": "",
+          "seed": 27
+        },
+        {
+          "id": "p_1791520155634_28",
+          "name": "Si AB",
+          "affiliation": "",
+          "photo": "",
+          "seed": 28
+        },
+        {
+          "id": "p_1791520157810_29",
+          "name": "Si AC",
+          "affiliation": "",
+          "photo": "",
+          "seed": 29
+        },
+        {
+          "id": "p_1791520159834_30",
+          "name": "Di AD",
+          "affiliation": "",
+          "photo": "",
+          "seed": 30
+        },
+        {
+          "id": "p_1791520161978_31",
+          "name": "Di AE",
+          "affiliation": "",
+          "photo": "",
+          "seed": 31
+        },
+        {
+          "id": "p_1791520166226_32",
+          "name": "Si AF",
+          "affiliation": "",
+          "photo": "",
+          "seed": 32
+        },
+        {
+          "id": "p_1791520169426_33",
+          "name": "Si AG",
+          "affiliation": "",
+          "photo": "",
+          "seed": 33
+        },
+        {
+          "id": "p_1791520172114_34",
+          "name": "Si AH",
+          "affiliation": "",
+          "photo": "",
+          "seed": 34
+        },
+        {
+          "id": "p_1791520174978_35",
+          "name": "Si AI",
+          "affiliation": "",
+          "photo": "",
+          "seed": 35
+        },
+        {
+          "id": "p_1791520179206_36",
+          "name": "Si AJ",
+          "affiliation": "",
+          "photo": "",
+          "seed": 36
+        }
+      ],
+      "unassignedParticipantIds": [
+        "p_1791520072327_1",
+        "p_1791520076371_2",
+        "p_1791520078619_3",
+        "p_1791520080452_4",
+        "p_1791520082667_5",
+        "p_1791520085080_6",
+        "p_1791520087064_7",
+        "p_1791520089647_8",
+        "p_1791520094693_9",
+        "p_1791520097352_10",
+        "p_1791520101020_11",
+        "p_1791520103588_12",
+        "p_1791520105696_13",
+        "p_1791520107608_14",
+        "p_1791520111465_15",
+        "p_1791520117069_16",
+        "p_1791520121885_17",
+        "p_1791520127385_18",
+        "p_1791520129802_19",
+        "p_1791520134181_20",
+        "p_1791520136457_21",
+        "p_1791520138777_22",
+        "p_1791520141445_23",
+        "p_1791520143853_24",
+        "p_1791520146833_25",
+        "p_1791520148957_26",
+        "p_1791520152981_27",
+        "p_1791520155634_28",
+        "p_1791520157810_29",
+        "p_1791520159834_30",
+        "p_1791520161978_31",
+        "p_1791520166226_32",
+        "p_1791520169426_33",
+        "p_1791520172114_34",
+        "p_1791520174978_35",
+        "p_1791520179206_36"
+      ],
+      "rounds": [
+        {
+          "index": 0,
+          "name": "BABAK 1 (TOP 64)",
+          "subTitle": "32 Pertandingan",
+          "matchIds": [
+            "r0_m1",
+            "r0_m2",
+            "r0_m3",
+            "r0_m4",
+            "r0_m5",
+            "r0_m6",
+            "r0_m7",
+            "r0_m8",
+            "r0_m9",
+            "r0_m10",
+            "r0_m11",
+            "r0_m12",
+            "r0_m13",
+            "r0_m14",
+            "r0_m15",
+            "r0_m16",
+            "r0_m17",
+            "r0_m18",
+            "r0_m19",
+            "r0_m20",
+            "r0_m21",
+            "r0_m22",
+            "r0_m23",
+            "r0_m24",
+            "r0_m25",
+            "r0_m26",
+            "r0_m27",
+            "r0_m28",
+            "r0_m29",
+            "r0_m30",
+            "r0_m31",
+            "r0_m32"
+          ]
+        },
+        {
+          "index": 1,
+          "name": "BABAK 2 (TOP 32)",
+          "subTitle": "16 Pertandingan",
+          "matchIds": [
+            "r1_m1",
+            "r1_m2",
+            "r1_m3",
+            "r1_m4",
+            "r1_m5",
+            "r1_m6",
+            "r1_m7",
+            "r1_m8",
+            "r1_m9",
+            "r1_m10",
+            "r1_m11",
+            "r1_m12",
+            "r1_m13",
+            "r1_m14",
+            "r1_m15",
+            "r1_m16"
+          ]
+        },
+        {
+          "index": 2,
+          "name": "BABAK 3 (TOP 16)",
+          "subTitle": "8 Pertandingan",
+          "matchIds": [
+            "r2_m1",
+            "r2_m2",
+            "r2_m3",
+            "r2_m4",
+            "r2_m5",
+            "r2_m6",
+            "r2_m7",
+            "r2_m8"
+          ]
+        },
+        {
+          "index": 3,
+          "name": "QUARTER FINAL",
+          "subTitle": "4 Pertandingan",
+          "matchIds": [
+            "r3_m1",
+            "r3_m2",
+            "r3_m3",
+            "r3_m4"
+          ]
+        },
+        {
+          "index": 4,
+          "name": "SEMI FINAL",
+          "subTitle": "2 Pertandingan",
+          "matchIds": [
+            "r4_m1",
+            "r4_m2"
+          ]
+        },
+        {
+          "index": 5,
+          "name": "GRAND FINAL",
+          "subTitle": "1 Pertandingan",
+          "matchIds": [
+            "r5_m1"
+          ]
+        }
+      ],
+      "matches": {
+        "r0_m1": {
+          "id": "r0_m1",
+          "matchNumber": 1,
+          "label": "Match 1",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520127385_18",
+            "name": "Si R",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520076371_2",
+            "name": "Si B",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m1",
+          "nextMatchSlot": "A"
+        },
+        "r0_m2": {
+          "id": "r0_m2",
+          "matchNumber": 2,
+          "label": "Match 2",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520097352_10",
+            "name": "Si J",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520107608_14",
+            "name": "Si N",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m1",
+          "nextMatchSlot": "B"
+        },
+        "r0_m3": {
+          "id": "r0_m3",
+          "matchNumber": 3,
+          "label": "Match 3",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520072327_1",
+            "name": "Si A",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520161978_31",
+            "name": "Di AE",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m2",
+          "nextMatchSlot": "A"
+        },
+        "r0_m4": {
+          "id": "r0_m4",
+          "matchNumber": 4,
+          "label": "Match 4",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520101020_11",
+            "name": "Si K",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520134181_20",
+            "name": "Si T",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m2",
+          "nextMatchSlot": "B"
+        },
+        "r0_m5": {
+          "id": "r0_m5",
+          "matchNumber": 5,
+          "label": "Match 5",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520121885_17",
+            "name": "Si Q",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520087064_7",
+            "name": "Si G",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m3",
+          "nextMatchSlot": "A"
+        },
+        "r0_m6": {
+          "id": "r0_m6",
+          "matchNumber": 6,
+          "label": "Match 6",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520169426_33",
+            "name": "Si AG",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520148957_26",
+            "name": "Si Z",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m3",
+          "nextMatchSlot": "B"
+        },
+        "r0_m7": {
+          "id": "r0_m7",
+          "matchNumber": 7,
+          "label": "Match 7",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520146833_25",
+            "name": "Si Y",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520129802_19",
+            "name": "Si S",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m4",
+          "nextMatchSlot": "A"
+        },
+        "r0_m8": {
+          "id": "r0_m8",
+          "matchNumber": 8,
+          "label": "Match 8",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520166226_32",
+            "name": "Si AF",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520179206_36",
+            "name": "Si AJ",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m4",
+          "nextMatchSlot": "B"
+        },
+        "r0_m9": {
+          "id": "r0_m9",
+          "matchNumber": 9,
+          "label": "Match 9",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520159834_30",
+            "name": "Di AD",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520105696_13",
+            "name": "Si M",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m5",
+          "nextMatchSlot": "A"
+        },
+        "r0_m10": {
+          "id": "r0_m10",
+          "matchNumber": 10,
+          "label": "Match 10",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520117069_16",
+            "name": "Si P",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520111465_15",
+            "name": "Si O",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m5",
+          "nextMatchSlot": "B"
+        },
+        "r0_m11": {
+          "id": "r0_m11",
+          "matchNumber": 11,
+          "label": "Match 11",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520078619_3",
+            "name": "Si C",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520082667_5",
+            "name": "Si E",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m6",
+          "nextMatchSlot": "A"
+        },
+        "r0_m12": {
+          "id": "r0_m12",
+          "matchNumber": 12,
+          "label": "Match 12",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520152981_27",
+            "name": "Si AA",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520085080_6",
+            "name": "Si F",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m6",
+          "nextMatchSlot": "B"
+        },
+        "r0_m13": {
+          "id": "r0_m13",
+          "matchNumber": 13,
+          "label": "Match 13",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520094693_9",
+            "name": "Si I",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520172114_34",
+            "name": "Si AH",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m7",
+          "nextMatchSlot": "A"
+        },
+        "r0_m14": {
+          "id": "r0_m14",
+          "matchNumber": 14,
+          "label": "Match 14",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520141445_23",
+            "name": "Si W",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520080452_4",
+            "name": "Si D",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m7",
+          "nextMatchSlot": "B"
+        },
+        "r0_m15": {
+          "id": "r0_m15",
+          "matchNumber": 15,
+          "label": "Match 15",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520138777_22",
+            "name": "Si V",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520136457_21",
+            "name": "Si U",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m8",
+          "nextMatchSlot": "A"
+        },
+        "r0_m16": {
+          "id": "r0_m16",
+          "matchNumber": 16,
+          "label": "Match 16",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520155634_28",
+            "name": "Si AB",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520174978_35",
+            "name": "Si AI",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m8",
+          "nextMatchSlot": "B"
+        },
+        "r0_m17": {
+          "id": "r0_m17",
+          "matchNumber": 17,
+          "label": "Match 17",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520157810_29",
+            "name": "Si AC",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520143853_24",
+            "name": "Si X",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m9",
+          "nextMatchSlot": "A"
+        },
+        "r0_m18": {
+          "id": "r0_m18",
+          "matchNumber": 18,
+          "label": "Match 18",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791520103588_12",
+            "name": "Si L",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791520089647_8",
+            "name": "Si H",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": null,
+          "status": "ready",
+          "nextMatchId": "r1_m9",
+          "nextMatchSlot": "B"
+        },
+        "r0_m19": {
+          "id": "r0_m19",
+          "matchNumber": 19,
+          "label": "Match 19",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m10",
+          "nextMatchSlot": "A"
+        },
+        "r0_m20": {
+          "id": "r0_m20",
+          "matchNumber": 20,
+          "label": "Match 20",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m10",
+          "nextMatchSlot": "B"
+        },
+        "r0_m21": {
+          "id": "r0_m21",
+          "matchNumber": 21,
+          "label": "Match 21",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m11",
+          "nextMatchSlot": "A"
+        },
+        "r0_m22": {
+          "id": "r0_m22",
+          "matchNumber": 22,
+          "label": "Match 22",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m11",
+          "nextMatchSlot": "B"
+        },
+        "r0_m23": {
+          "id": "r0_m23",
+          "matchNumber": 23,
+          "label": "Match 23",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m12",
+          "nextMatchSlot": "A"
+        },
+        "r0_m24": {
+          "id": "r0_m24",
+          "matchNumber": 24,
+          "label": "Match 24",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m12",
+          "nextMatchSlot": "B"
+        },
+        "r0_m25": {
+          "id": "r0_m25",
+          "matchNumber": 25,
+          "label": "Match 25",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m13",
+          "nextMatchSlot": "A"
+        },
+        "r0_m26": {
+          "id": "r0_m26",
+          "matchNumber": 26,
+          "label": "Match 26",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m13",
+          "nextMatchSlot": "B"
+        },
+        "r0_m27": {
+          "id": "r0_m27",
+          "matchNumber": 27,
+          "label": "Match 27",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m14",
+          "nextMatchSlot": "A"
+        },
+        "r0_m28": {
+          "id": "r0_m28",
+          "matchNumber": 28,
+          "label": "Match 28",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m14",
+          "nextMatchSlot": "B"
+        },
+        "r0_m29": {
+          "id": "r0_m29",
+          "matchNumber": 29,
+          "label": "Match 29",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m15",
+          "nextMatchSlot": "A"
+        },
+        "r0_m30": {
+          "id": "r0_m30",
+          "matchNumber": 30,
+          "label": "Match 30",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m15",
+          "nextMatchSlot": "B"
+        },
+        "r0_m31": {
+          "id": "r0_m31",
+          "matchNumber": 31,
+          "label": "Match 31",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m16",
+          "nextMatchSlot": "A"
+        },
+        "r0_m32": {
+          "id": "r0_m32",
+          "matchNumber": 32,
+          "label": "Match 32",
+          "roundIndex": 0,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r1_m16",
+          "nextMatchSlot": "B"
+        },
+        "r1_m1": {
+          "id": "r1_m1",
+          "matchNumber": 33,
+          "label": "Match 33",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m1",
+          "nextMatchSlot": "A"
+        },
+        "r1_m2": {
+          "id": "r1_m2",
+          "matchNumber": 34,
+          "label": "Match 34",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m1",
+          "nextMatchSlot": "B"
+        },
+        "r1_m3": {
+          "id": "r1_m3",
+          "matchNumber": 35,
+          "label": "Match 35",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m2",
+          "nextMatchSlot": "A"
+        },
+        "r1_m4": {
+          "id": "r1_m4",
+          "matchNumber": 36,
+          "label": "Match 36",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m2",
+          "nextMatchSlot": "B"
+        },
+        "r1_m5": {
+          "id": "r1_m5",
+          "matchNumber": 37,
+          "label": "Match 37",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m3",
+          "nextMatchSlot": "A"
+        },
+        "r1_m6": {
+          "id": "r1_m6",
+          "matchNumber": 38,
+          "label": "Match 38",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m3",
+          "nextMatchSlot": "B"
+        },
+        "r1_m7": {
+          "id": "r1_m7",
+          "matchNumber": 39,
+          "label": "Match 39",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m4",
+          "nextMatchSlot": "A"
+        },
+        "r1_m8": {
+          "id": "r1_m8",
+          "matchNumber": 40,
+          "label": "Match 40",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m4",
+          "nextMatchSlot": "B"
+        },
+        "r1_m9": {
+          "id": "r1_m9",
+          "matchNumber": 41,
+          "label": "Match 41",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m5",
+          "nextMatchSlot": "A"
+        },
+        "r1_m10": {
+          "id": "r1_m10",
+          "matchNumber": 42,
+          "label": "Match 42",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m5",
+          "nextMatchSlot": "B"
+        },
+        "r1_m11": {
+          "id": "r1_m11",
+          "matchNumber": 43,
+          "label": "Match 43",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m6",
+          "nextMatchSlot": "A"
+        },
+        "r1_m12": {
+          "id": "r1_m12",
+          "matchNumber": 44,
+          "label": "Match 44",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m6",
+          "nextMatchSlot": "B"
+        },
+        "r1_m13": {
+          "id": "r1_m13",
+          "matchNumber": 45,
+          "label": "Match 45",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m7",
+          "nextMatchSlot": "A"
+        },
+        "r1_m14": {
+          "id": "r1_m14",
+          "matchNumber": 46,
+          "label": "Match 46",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m7",
+          "nextMatchSlot": "B"
+        },
+        "r1_m15": {
+          "id": "r1_m15",
+          "matchNumber": 47,
+          "label": "Match 47",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m8",
+          "nextMatchSlot": "A"
+        },
+        "r1_m16": {
+          "id": "r1_m16",
+          "matchNumber": 48,
+          "label": "Match 48",
+          "roundIndex": 1,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r2_m8",
+          "nextMatchSlot": "B"
+        },
+        "r2_m1": {
+          "id": "r2_m1",
+          "matchNumber": 49,
+          "label": "Match 49",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m1",
+          "nextMatchSlot": "A"
+        },
+        "r2_m2": {
+          "id": "r2_m2",
+          "matchNumber": 50,
+          "label": "Match 50",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m1",
+          "nextMatchSlot": "B"
+        },
+        "r2_m3": {
+          "id": "r2_m3",
+          "matchNumber": 51,
+          "label": "Match 51",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m2",
+          "nextMatchSlot": "A"
+        },
+        "r2_m4": {
+          "id": "r2_m4",
+          "matchNumber": 52,
+          "label": "Match 52",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m2",
+          "nextMatchSlot": "B"
+        },
+        "r2_m5": {
+          "id": "r2_m5",
+          "matchNumber": 53,
+          "label": "Match 53",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m3",
+          "nextMatchSlot": "A"
+        },
+        "r2_m6": {
+          "id": "r2_m6",
+          "matchNumber": 54,
+          "label": "Match 54",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m3",
+          "nextMatchSlot": "B"
+        },
+        "r2_m7": {
+          "id": "r2_m7",
+          "matchNumber": 55,
+          "label": "Match 55",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m4",
+          "nextMatchSlot": "A"
+        },
+        "r2_m8": {
+          "id": "r2_m8",
+          "matchNumber": 56,
+          "label": "Match 56",
+          "roundIndex": 2,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r3_m4",
+          "nextMatchSlot": "B"
+        },
+        "r3_m1": {
+          "id": "r3_m1",
+          "matchNumber": 57,
+          "label": "Match 57",
+          "roundIndex": 3,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r4_m1",
+          "nextMatchSlot": "A"
+        },
+        "r3_m2": {
+          "id": "r3_m2",
+          "matchNumber": 58,
+          "label": "Match 58",
+          "roundIndex": 3,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r4_m1",
+          "nextMatchSlot": "B"
+        },
+        "r3_m3": {
+          "id": "r3_m3",
+          "matchNumber": 59,
+          "label": "Match 59",
+          "roundIndex": 3,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r4_m2",
+          "nextMatchSlot": "A"
+        },
+        "r3_m4": {
+          "id": "r3_m4",
+          "matchNumber": 60,
+          "label": "Match 60",
+          "roundIndex": 3,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r4_m2",
+          "nextMatchSlot": "B"
+        },
+        "r4_m1": {
+          "id": "r4_m1",
+          "matchNumber": 61,
+          "label": "Match 61",
+          "roundIndex": 4,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r5_m1",
+          "nextMatchSlot": "A"
+        },
+        "r4_m2": {
+          "id": "r4_m2",
+          "matchNumber": 62,
+          "label": "Match 62",
+          "roundIndex": 4,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": "r5_m1",
+          "nextMatchSlot": "B"
+        },
+        "r5_m1": {
+          "id": "r5_m1",
+          "matchNumber": 63,
+          "label": "Championship Match",
+          "roundIndex": 5,
+          "participantA": null,
+          "participantB": null,
+          "winnerId": null,
+          "status": "pending",
+          "nextMatchId": null,
+          "nextMatchSlot": null
+        }
+      },
+      "grandFinalists": [],
+      "createdAt": "2026-10-09T04:27:44.380Z",
+      "updatedAt": "2026-10-09T04:31:44.443Z"
+    },
+    {
+      "id": "trn_1791520574695_6nck",
+      "userId": "user_admin",
+      "title": "KKB 2026",
+      "subtitle": "Manual Brewing Throwdown Competition",
+      "location": "Main Stage",
+      "date": "10 - 11 Oktober 2026",
+      "format": "knockout-standard",
+      "status": "in_progress",
+      "participants": [
+        {
+          "id": "p_1791522512921_1",
+          "name": "uhn efwf]",
+          "affiliation": "",
+          "photo": "",
+          "seed": 1
+        },
+        {
+          "id": "p_1791522514190_2",
+          "name": "f3r igrjn g",
+          "affiliation": "",
+          "photo": "",
+          "seed": 2
+        },
+        {
+          "id": "p_1791522514921_3",
+          "name": "gr g",
+          "affiliation": "",
+          "photo": "",
+          "seed": 3
+        },
+        {
+          "id": "p_1791522515542_4",
+          "name": "r wkgpoew",
+          "affiliation": "",
+          "photo": "",
+          "seed": 4
+        },
+        {
+          "id": "p_1791522516658_5",
+          "name": "g eopwrmgdmfsk gv",
+          "affiliation": "",
+          "photo": "",
+          "seed": 5
+        },
+        {
+          "id": "p_1791522517549_6",
+          "name": "sdg fds gkf",
+          "affiliation": "",
+          "photo": "",
+          "seed": 6
+        },
+        {
+          "id": "p_1791522518030_7",
+          "name": "ds 'gdfs",
+          "affiliation": "",
+          "photo": "",
+          "seed": 7
+        },
+        {
+          "id": "p_1791522518986_8",
+          "name": "kgj dsfgjosj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 8
+        },
+        {
+          "id": "p_1791522519790_9",
+          "name": "dfs gsd",
+          "affiliation": "",
+          "photo": "",
+          "seed": 9
+        },
+        {
+          "id": "p_1791522520486_10",
+          "name": "gfd kgdf s",
+          "affiliation": "",
+          "photo": "",
+          "seed": 10
+        },
+        {
+          "id": "p_1791522520809_11",
+          "name": "gfdk",
+          "affiliation": "",
+          "photo": "",
+          "seed": 11
+        },
+        {
+          "id": "p_1791522521118_12",
+          "name": "s kg",
+          "affiliation": "",
+          "photo": "",
+          "seed": 12
+        },
+        {
+          "id": "p_1791522521682_13",
+          "name": "we[krg p",
+          "affiliation": "",
+          "photo": "",
+          "seed": 13
+        },
+        {
+          "id": "p_1791522521901_14",
+          "name": "krwp",
+          "affiliation": "",
+          "photo": "",
+          "seed": 14
+        },
+        {
+          "id": "p_1791522522794_15",
+          "name": "k54p3 y4j3o yh",
+          "affiliation": "",
+          "photo": "",
+          "seed": 15
+        },
+        {
+          "id": "p_1791522522934_16",
+          "name": "54",
+          "affiliation": "",
+          "photo": "",
+          "seed": 16
+        },
+        {
+          "id": "p_1791522523222_17",
+          "name": "5",
+          "affiliation": "",
+          "photo": "",
+          "seed": 17
+        },
+        {
+          "id": "p_1791522523657_18",
+          "name": "4 uj65",
+          "affiliation": "",
+          "photo": "",
+          "seed": 18
+        },
+        {
+          "id": "p_1791522524050_19",
+          "name": "4 hj564",
+          "affiliation": "",
+          "photo": "",
+          "seed": 19
+        },
+        {
+          "id": "p_1791522525010_20",
+          "name": "pj ho6543j po324m",
+          "affiliation": "",
+          "photo": "",
+          "seed": 20
+        },
+        {
+          "id": "p_1791522525186_21",
+          "name": "erw",
+          "affiliation": "",
+          "photo": "",
+          "seed": 21
+        },
+        {
+          "id": "p_1791522525670_22",
+          "name": "wj jgr",
+          "affiliation": "",
+          "photo": "",
+          "seed": 22
+        },
+        {
+          "id": "p_1791522526198_23",
+          "name": "e wj gerw",
+          "affiliation": "",
+          "photo": "",
+          "seed": 23
+        },
+        {
+          "id": "p_1791522526330_24",
+          "name": "r",
+          "affiliation": "",
+          "photo": "",
+          "seed": 24
+        },
+        {
+          "id": "p_1791522526470_25",
+          "name": "j",
+          "affiliation": "",
+          "photo": "",
+          "seed": 25
+        },
+        {
+          "id": "p_1791522526730_26",
+          "name": "ge wj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 26
+        },
+        {
+          "id": "p_1791522527054_27",
+          "name": "gewrj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 27
+        },
+        {
+          "id": "p_1791522527382_28",
+          "name": "gperw",
+          "affiliation": "",
+          "photo": "",
+          "seed": 28
+        },
+        {
+          "id": "p_1791522527658_29",
+          "name": "jgewrpo",
+          "affiliation": "",
+          "photo": "",
+          "seed": 29
+        },
+        {
+          "id": "p_1791522528074_30",
+          "name": "rj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 30
+        },
+        {
+          "id": "p_1791522528322_31",
+          "name": "pj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 31
+        },
+        {
+          "id": "p_1791522528569_32",
+          "name": "gpewr",
+          "affiliation": "",
+          "photo": "",
+          "seed": 32
+        },
+        {
+          "id": "p_1791522528882_33",
+          "name": "pgrewj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 33
+        },
+        {
+          "id": "p_1791522529562_34",
+          "name": "jgerwo pgjewr",
+          "affiliation": "",
+          "photo": "",
+          "seed": 34
+        },
+        {
+          "id": "p_1791522530046_35",
+          "name": "pgew rj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 35
+        },
+        {
+          "id": "p_1791522530386_36",
+          "name": "grew j",
+          "affiliation": "",
+          "photo": "",
+          "seed": 36
+        },
+        {
+          "id": "p_1791522530647_37",
+          "name": "gre",
+          "affiliation": "",
+          "photo": "",
+          "seed": 37
+        },
+        {
+          "id": "p_1791522530846_38",
+          "name": "wj",
+          "affiliation": "",
+          "photo": "",
+          "seed": 38
+        },
+        {
+          "id": "p_1791522531141_39",
+          "name": "gejrw",
+          "affiliation": "",
+          "photo": "",
+          "seed": 39
+        }
+      ],
+      "unassignedParticipantIds": [
+        "p_1791522512921_1",
+        "p_1791522514190_2",
+        "p_1791522514921_3",
+        "p_1791522515542_4",
+        "p_1791522516658_5",
+        "p_1791522517549_6",
+        "p_1791522518030_7",
+        "p_1791522518986_8",
+        "p_1791522519790_9",
+        "p_1791522520486_10",
+        "p_1791522520809_11",
+        "p_1791522521118_12",
+        "p_1791522521682_13",
+        "p_1791522521901_14",
+        "p_1791522522794_15",
+        "p_1791522522934_16",
+        "p_1791522523222_17",
+        "p_1791522523657_18",
+        "p_1791522524050_19",
+        "p_1791522525010_20",
+        "p_1791522525186_21",
+        "p_1791522525670_22",
+        "p_1791522526198_23",
+        "p_1791522526330_24",
+        "p_1791522526470_25",
+        "p_1791522526730_26",
+        "p_1791522527054_27",
+        "p_1791522527382_28",
+        "p_1791522527658_29",
+        "p_1791522528074_30",
+        "p_1791522528322_31",
+        "p_1791522528569_32",
+        "p_1791522528882_33",
+        "p_1791522529562_34",
+        "p_1791522530046_35",
+        "p_1791522530386_36",
+        "p_1791522530647_37",
+        "p_1791522530846_38",
+        "p_1791522531141_39"
+      ],
+      "rounds": [
+        {
+          "index": 0,
+          "name": "39 BREWER",
+          "subTitle": "BABAK 1 (20 BATTLE)",
+          "matchIds": [
+            "r0_bypass",
+            "r0_m2",
+            "r0_m3",
+            "r0_m4",
+            "r0_m5",
+            "r0_m6",
+            "r0_m7",
+            "r0_m8",
+            "r0_m9",
+            "r0_m10",
+            "r0_m11",
+            "r0_m12",
+            "r0_m13",
+            "r0_m14",
+            "r0_m15",
+            "r0_m16",
+            "r0_m17",
+            "r0_m18",
+            "r0_m19",
+            "r0_m20"
+          ]
+        },
+        {
+          "index": 1,
+          "name": "BABAK 2",
+          "subTitle": "10 BATTLE",
+          "matchIds": [
+            "r1_m1",
+            "r1_m2",
+            "r1_m3",
+            "r1_m4",
+            "r1_m5",
+            "r1_m6",
+            "r1_m7",
+            "r1_m8",
+            "r1_m9",
+            "r1_m10"
+          ]
+        },
+        {
+          "index": 2,
+          "name": "BABAK 3",
+          "subTitle": "5 BATTLE",
+          "matchIds": [
+            "r2_m1",
+            "r2_m2",
+            "r2_m3",
+            "r2_m4",
+            "r2_m5"
+          ]
+        },
+        {
+          "index": 3,
+          "name": "BABAK 4",
+          "subTitle": "2 BATTLE + 1 BYPASS",
+          "matchIds": [
+            "r3_bypass",
+            "r3_m2",
+            "r3_m3"
+          ]
+        },
+        {
+          "index": 4,
+          "name": "SEMI FINAL",
+          "subTitle": "2 BATTLE",
+          "matchIds": [
+            "r4_bypass",
+            "r4_m2"
+          ]
+        },
+        {
+          "index": 5,
+          "name": "FINAL CHAMPIONSHIP",
+          "subTitle": "Perebutan Juara 1",
+          "matchIds": [
+            "r5_m1"
+          ]
+        }
+      ],
+      "matches": {
+        "r0_bypass": {
+          "id": "r0_bypass",
+          "matchNumber": 0,
+          "label": "⚡ BYPASS (Lolos Langsung)",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522512921_1",
+            "name": "uhn efwf]",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "name": "BYPASS / BYE",
+            "isBye": true
+          },
+          "winnerId": "p_1791522512921_1",
+          "status": "completed",
+          "nextMatchId": "r1_m1",
+          "nextMatchSlot": "A"
+        },
+        "r0_m2": {
+          "id": "r0_m2",
+          "matchNumber": 1,
+          "label": "Battle 1",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522514190_2",
+            "name": "f3r igrjn g",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522514921_3",
+            "name": "gr g",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522514190_2",
+          "status": "completed",
+          "nextMatchId": "r1_m1",
+          "nextMatchSlot": "B"
+        },
+        "r0_m3": {
+          "id": "r0_m3",
+          "matchNumber": 2,
+          "label": "Battle 2",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522515542_4",
+            "name": "r wkgpoew",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522516658_5",
+            "name": "g eopwrmgdmfsk gv",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522516658_5",
+          "status": "completed",
+          "nextMatchId": "r1_m2",
+          "nextMatchSlot": "A"
+        },
+        "r0_m4": {
+          "id": "r0_m4",
+          "matchNumber": 3,
+          "label": "Battle 3",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522517549_6",
+            "name": "sdg fds gkf",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522518030_7",
+            "name": "ds 'gdfs",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522518030_7",
+          "status": "completed",
+          "nextMatchId": "r1_m2",
+          "nextMatchSlot": "B"
+        },
+        "r0_m5": {
+          "id": "r0_m5",
+          "matchNumber": 4,
+          "label": "Battle 4",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522518986_8",
+            "name": "kgj dsfgjosj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522519790_9",
+            "name": "dfs gsd",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522519790_9",
+          "status": "completed",
+          "nextMatchId": "r1_m3",
+          "nextMatchSlot": "A"
+        },
+        "r0_m6": {
+          "id": "r0_m6",
+          "matchNumber": 5,
+          "label": "Battle 5",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522520486_10",
+            "name": "gfd kgdf s",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522520809_11",
+            "name": "gfdk",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522520809_11",
+          "status": "completed",
+          "nextMatchId": "r1_m3",
+          "nextMatchSlot": "B"
+        },
+        "r0_m7": {
+          "id": "r0_m7",
+          "matchNumber": 6,
+          "label": "Battle 6",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522521118_12",
+            "name": "s kg",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522521682_13",
+            "name": "we[krg p",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522521682_13",
+          "status": "completed",
+          "nextMatchId": "r1_m4",
+          "nextMatchSlot": "A"
+        },
+        "r0_m8": {
+          "id": "r0_m8",
+          "matchNumber": 7,
+          "label": "Battle 7",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522521901_14",
+            "name": "krwp",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522522794_15",
+            "name": "k54p3 y4j3o yh",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522521901_14",
+          "status": "completed",
+          "nextMatchId": "r1_m4",
+          "nextMatchSlot": "B"
+        },
+        "r0_m9": {
+          "id": "r0_m9",
+          "matchNumber": 8,
+          "label": "Battle 8",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522522934_16",
+            "name": "54",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522523222_17",
+            "name": "5",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522523222_17",
+          "status": "completed",
+          "nextMatchId": "r1_m5",
+          "nextMatchSlot": "A"
+        },
+        "r0_m10": {
+          "id": "r0_m10",
+          "matchNumber": 9,
+          "label": "Battle 9",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522523657_18",
+            "name": "4 uj65",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522524050_19",
+            "name": "4 hj564",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522523657_18",
+          "status": "completed",
+          "nextMatchId": "r1_m5",
+          "nextMatchSlot": "B"
+        },
+        "r0_m11": {
+          "id": "r0_m11",
+          "matchNumber": 10,
+          "label": "Battle 10",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522525010_20",
+            "name": "pj ho6543j po324m",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522525186_21",
+            "name": "erw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522525010_20",
+          "status": "completed",
+          "nextMatchId": "r1_m6",
+          "nextMatchSlot": "A"
+        },
+        "r0_m12": {
+          "id": "r0_m12",
+          "matchNumber": 11,
+          "label": "Battle 11",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522525670_22",
+            "name": "wj jgr",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522526198_23",
+            "name": "e wj gerw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522525670_22",
+          "status": "completed",
+          "nextMatchId": "r1_m6",
+          "nextMatchSlot": "B"
+        },
+        "r0_m13": {
+          "id": "r0_m13",
+          "matchNumber": 12,
+          "label": "Battle 12",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522526330_24",
+            "name": "r",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522526470_25",
+            "name": "j",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522526470_25",
+          "status": "completed",
+          "nextMatchId": "r1_m7",
+          "nextMatchSlot": "A"
+        },
+        "r0_m14": {
+          "id": "r0_m14",
+          "matchNumber": 13,
+          "label": "Battle 13",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522526730_26",
+            "name": "ge wj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522527054_27",
+            "name": "gewrj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522526730_26",
+          "status": "completed",
+          "nextMatchId": "r1_m7",
+          "nextMatchSlot": "B"
+        },
+        "r0_m15": {
+          "id": "r0_m15",
+          "matchNumber": 14,
+          "label": "Battle 14",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522527382_28",
+            "name": "gperw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522527658_29",
+            "name": "jgewrpo",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522527382_28",
+          "status": "completed",
+          "nextMatchId": "r1_m8",
+          "nextMatchSlot": "A"
+        },
+        "r0_m16": {
+          "id": "r0_m16",
+          "matchNumber": 15,
+          "label": "Battle 15",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522528074_30",
+            "name": "rj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522528322_31",
+            "name": "pj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522528322_31",
+          "status": "completed",
+          "nextMatchId": "r1_m8",
+          "nextMatchSlot": "B"
+        },
+        "r0_m17": {
+          "id": "r0_m17",
+          "matchNumber": 16,
+          "label": "Battle 16",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522528569_32",
+            "name": "gpewr",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522528882_33",
+            "name": "pgrewj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522528882_33",
+          "status": "completed",
+          "nextMatchId": "r1_m9",
+          "nextMatchSlot": "A"
+        },
+        "r0_m18": {
+          "id": "r0_m18",
+          "matchNumber": 17,
+          "label": "Battle 17",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522529562_34",
+            "name": "jgerwo pgjewr",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522530046_35",
+            "name": "pgew rj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522530046_35",
+          "status": "completed",
+          "nextMatchId": "r1_m9",
+          "nextMatchSlot": "B"
+        },
+        "r0_m19": {
+          "id": "r0_m19",
+          "matchNumber": 18,
+          "label": "Battle 18",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522530386_36",
+            "name": "grew j",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522530647_37",
+            "name": "gre",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522530386_36",
+          "status": "completed",
+          "nextMatchId": "r1_m10",
+          "nextMatchSlot": "A"
+        },
+        "r0_m20": {
+          "id": "r0_m20",
+          "matchNumber": 19,
+          "label": "Battle 19",
+          "roundIndex": 0,
+          "participantA": {
+            "participantId": "p_1791522530846_38",
+            "name": "wj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522531141_39",
+            "name": "gejrw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522531141_39",
+          "status": "completed",
+          "nextMatchId": "r1_m10",
+          "nextMatchSlot": "B"
+        },
+        "r1_m1": {
+          "id": "r1_m1",
+          "matchNumber": 20,
+          "label": "Battle 20",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522512921_1",
+            "name": "uhn efwf]",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522514190_2",
+            "name": "f3r igrjn g",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522514190_2",
+          "status": "completed",
+          "nextMatchId": "r2_m1",
+          "nextMatchSlot": "A"
+        },
+        "r1_m2": {
+          "id": "r1_m2",
+          "matchNumber": 21,
+          "label": "Battle 21",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522516658_5",
+            "name": "g eopwrmgdmfsk gv",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522518030_7",
+            "name": "ds 'gdfs",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522516658_5",
+          "status": "completed",
+          "nextMatchId": "r2_m1",
+          "nextMatchSlot": "B"
+        },
+        "r1_m3": {
+          "id": "r1_m3",
+          "matchNumber": 22,
+          "label": "Battle 22",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522519790_9",
+            "name": "dfs gsd",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522520809_11",
+            "name": "gfdk",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522520809_11",
+          "status": "completed",
+          "nextMatchId": "r2_m2",
+          "nextMatchSlot": "A"
+        },
+        "r1_m4": {
+          "id": "r1_m4",
+          "matchNumber": 23,
+          "label": "Battle 23",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522521682_13",
+            "name": "we[krg p",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522521901_14",
+            "name": "krwp",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522521901_14",
+          "status": "completed",
+          "nextMatchId": "r2_m2",
+          "nextMatchSlot": "B"
+        },
+        "r1_m5": {
+          "id": "r1_m5",
+          "matchNumber": 24,
+          "label": "Battle 24",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522523222_17",
+            "name": "5",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522523657_18",
+            "name": "4 uj65",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522523222_17",
+          "status": "completed",
+          "nextMatchId": "r2_m3",
+          "nextMatchSlot": "A"
+        },
+        "r1_m6": {
+          "id": "r1_m6",
+          "matchNumber": 25,
+          "label": "Battle 25",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522525010_20",
+            "name": "pj ho6543j po324m",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522525670_22",
+            "name": "wj jgr",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522525010_20",
+          "status": "ready",
+          "nextMatchId": "r2_m3",
+          "nextMatchSlot": "B"
+        },
+        "r1_m7": {
+          "id": "r1_m7",
+          "matchNumber": 26,
+          "label": "Battle 26",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522526470_25",
+            "name": "j",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522526730_26",
+            "name": "ge wj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522526730_26",
+          "status": "completed",
+          "nextMatchId": "r2_m4",
+          "nextMatchSlot": "A"
+        },
+        "r1_m8": {
+          "id": "r1_m8",
+          "matchNumber": 27,
+          "label": "Battle 27",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522527382_28",
+            "name": "gperw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522528322_31",
+            "name": "pj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522528322_31",
+          "status": "completed",
+          "nextMatchId": "r2_m4",
+          "nextMatchSlot": "B"
+        },
+        "r1_m9": {
+          "id": "r1_m9",
+          "matchNumber": 28,
+          "label": "Battle 28",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522528882_33",
+            "name": "pgrewj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522530046_35",
+            "name": "pgew rj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522528882_33",
+          "status": "completed",
+          "nextMatchId": "r2_m5",
+          "nextMatchSlot": "A"
+        },
+        "r1_m10": {
+          "id": "r1_m10",
+          "matchNumber": 29,
+          "label": "Battle 29",
+          "roundIndex": 1,
+          "participantA": {
+            "participantId": "p_1791522530386_36",
+            "name": "grew j",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522531141_39",
+            "name": "gejrw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522531141_39",
+          "status": "completed",
+          "nextMatchId": "r2_m5",
+          "nextMatchSlot": "B"
+        },
+        "r2_m1": {
+          "id": "r2_m1",
+          "matchNumber": 30,
+          "label": "Battle 30",
+          "roundIndex": 2,
+          "participantA": {
+            "participantId": "p_1791522514190_2",
+            "name": "f3r igrjn g",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522516658_5",
+            "name": "g eopwrmgdmfsk gv",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522514190_2",
+          "status": "completed",
+          "nextMatchId": "r3_bypass",
+          "nextMatchSlot": "A"
+        },
+        "r2_m2": {
+          "id": "r2_m2",
+          "matchNumber": 31,
+          "label": "Battle 31",
+          "roundIndex": 2,
+          "participantA": {
+            "participantId": "p_1791522520809_11",
+            "name": "gfdk",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522521901_14",
+            "name": "krwp",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522521901_14",
+          "status": "completed",
+          "nextMatchId": "r3_m2",
+          "nextMatchSlot": "A"
+        },
+        "r2_m3": {
+          "id": "r2_m3",
+          "matchNumber": 32,
+          "label": "Battle 32",
+          "roundIndex": 2,
+          "participantA": {
+            "participantId": "p_1791522523222_17",
+            "name": "5",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522525010_20",
+            "name": "pj ho6543j po324m",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522523222_17",
+          "status": "completed",
+          "nextMatchId": "r3_m2",
+          "nextMatchSlot": "B"
+        },
+        "r2_m4": {
+          "id": "r2_m4",
+          "matchNumber": 33,
+          "label": "Battle 33",
+          "roundIndex": 2,
+          "participantA": {
+            "participantId": "p_1791522526730_26",
+            "name": "ge wj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522528322_31",
+            "name": "pj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522526730_26",
+          "status": "completed",
+          "nextMatchId": "r3_m3",
+          "nextMatchSlot": "A"
+        },
+        "r2_m5": {
+          "id": "r2_m5",
+          "matchNumber": 34,
+          "label": "Battle 34",
+          "roundIndex": 2,
+          "participantA": {
+            "participantId": "p_1791522528882_33",
+            "name": "pgrewj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522531141_39",
+            "name": "gejrw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522531141_39",
+          "status": "completed",
+          "nextMatchId": "r3_m3",
+          "nextMatchSlot": "B"
+        },
+        "r3_bypass": {
+          "id": "r3_bypass",
+          "matchNumber": 0,
+          "label": "⚡ BYPASS (Lolos Langsung)",
+          "roundIndex": 3,
+          "participantA": {
+            "participantId": "p_1791522514190_2",
+            "name": "f3r igrjn g",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "name": "BYPASS / BYE",
+            "isBye": true
+          },
+          "winnerId": "p_1791522514190_2",
+          "status": "completed",
+          "nextMatchId": "r4_bypass",
+          "nextMatchSlot": "A"
+        },
+        "r3_m2": {
+          "id": "r3_m2",
+          "matchNumber": 35,
+          "label": "Battle 35",
+          "roundIndex": 3,
+          "participantA": {
+            "participantId": "p_1791522521901_14",
+            "name": "krwp",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522523222_17",
+            "name": "5",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522523222_17",
+          "status": "completed",
+          "nextMatchId": "r4_m2",
+          "nextMatchSlot": "A"
+        },
+        "r3_m3": {
+          "id": "r3_m3",
+          "matchNumber": 36,
+          "label": "Battle 36",
+          "roundIndex": 3,
+          "participantA": {
+            "participantId": "p_1791522526730_26",
+            "name": "ge wj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522531141_39",
+            "name": "gejrw",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522526730_26",
+          "status": "completed",
+          "nextMatchId": "r4_m2",
+          "nextMatchSlot": "B"
+        },
+        "r4_bypass": {
+          "id": "r4_bypass",
+          "matchNumber": 0,
+          "label": "⚡ BYPASS (Lolos Langsung)",
+          "roundIndex": 4,
+          "participantA": {
+            "participantId": "p_1791522514190_2",
+            "name": "f3r igrjn g",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "name": "BYPASS / BYE",
+            "isBye": true
+          },
+          "winnerId": "p_1791522514190_2",
+          "status": "completed",
+          "nextMatchId": "r5_m1",
+          "nextMatchSlot": "A"
+        },
+        "r4_m2": {
+          "id": "r4_m2",
+          "matchNumber": 37,
+          "label": "Battle 37",
+          "roundIndex": 4,
+          "participantA": {
+            "participantId": "p_1791522523222_17",
+            "name": "5",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522526730_26",
+            "name": "ge wj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522526730_26",
+          "status": "completed",
+          "nextMatchId": "r5_m1",
+          "nextMatchSlot": "B"
+        },
+        "r5_m1": {
+          "id": "r5_m1",
+          "matchNumber": 38,
+          "label": "Battle 38",
+          "roundIndex": 5,
+          "participantA": {
+            "participantId": "p_1791522514190_2",
+            "name": "f3r igrjn g",
+            "affiliation": "",
+            "photo": ""
+          },
+          "participantB": {
+            "participantId": "p_1791522526730_26",
+            "name": "ge wj",
+            "affiliation": "",
+            "photo": ""
+          },
+          "winnerId": "p_1791522526730_26",
+          "status": "completed",
+          "nextMatchId": null,
+          "nextMatchSlot": null
+        }
+      },
+      "grandFinalists": [
+        {
+          "id": "finalist_1",
+          "name": "Menunggu Hasil...",
+          "sourceLabel": "Finalis 1"
+        },
+        {
+          "id": "finalist_2",
+          "name": "Menunggu Hasil...",
+          "sourceLabel": "Finalis 2"
+        },
+        {
+          "id": "finalist_3",
+          "name": "Menunggu Hasil...",
+          "sourceLabel": "Finalis 3"
+        }
+      ],
+      "createdAt": "2026-10-09T04:36:14.695Z",
+      "updatedAt": "2026-10-09T05:23:26.480Z"
+    }
+  ]
+}
