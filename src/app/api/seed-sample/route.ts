@@ -90,7 +90,7 @@ export async function POST() {
     updatedAt: new Date().toISOString(),
   };
 
-  saveTournament(tournament);
+  await saveTournament(tournament);
 
   return NextResponse.json({ tournament });
 }

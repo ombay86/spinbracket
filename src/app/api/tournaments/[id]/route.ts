@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const tournament = getTournamentById(params.id);
+  const tournament = await getTournamentById(params.id);
   if (!tournament || tournament.userId !== user.id) {
     return NextResponse.json({ error: 'Turnamen tidak ditemukan' }, { status: 404 });
   }
@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       tournament.rounds = generated.rounds;
       tournament.matches = generated.matches;
       tournament.grandFinalists = generated.grandFinalists;
-      saveTournament(tournament);
+      await saveTournament(tournament);
     }
   }
 
@@ -40,7 +40,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const tournament = getTournamentById(params.id);
+  const tournament = await getTournamentById(params.id);
   if (!tournament || tournament.userId !== user.id) {
     return NextResponse.json({ error: 'Turnamen tidak ditemukan' }, { status: 404 });
   }
@@ -56,7 +56,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       updatedAt: new Date().toISOString(),
     };
 
-    saveTournament(updatedTournament);
+    await saveTournament(updatedTournament);
     return NextResponse.json({ tournament: updatedTournament });
   } catch (error: any) {
     console.error('Update tournament error', error);
@@ -70,7 +70,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const success = deleteTournament(params.id, user.id);
+  const success = await deleteTournament(params.id, user.id);
   if (!success) {
     return NextResponse.json({ error: 'Gagal menghapus turnamen' }, { status: 404 });
   }

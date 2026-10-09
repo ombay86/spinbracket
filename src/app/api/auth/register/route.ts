@@ -18,12 +18,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Password minimal 4 karakter' }, { status: 400 });
     }
 
-    const existing = getUserByUsername(username);
+    const existing = await getUserByUsername(username);
     if (existing) {
       return NextResponse.json({ error: 'Username sudah digunakan' }, { status: 400 });
     }
 
-    const newUser = createUser(username, password, name);
+    const newUser = await createUser(username, password, name);
     const response = NextResponse.json({
       user: {
         id: newUser.id,

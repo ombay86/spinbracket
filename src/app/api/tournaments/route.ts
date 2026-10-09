@@ -9,7 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const tournaments = getTournamentsByUser(user.id);
+  const tournaments = await getTournamentsByUser(user.id);
   return NextResponse.json({ tournaments });
 }
 
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString(),
     };
 
-    saveTournament(newTournament);
+    await saveTournament(newTournament);
 
     return NextResponse.json({ tournament: newTournament });
   } catch (error: any) {

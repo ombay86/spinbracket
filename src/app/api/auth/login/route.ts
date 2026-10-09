@@ -10,7 +10,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username dan password wajib diisi' }, { status: 400 });
     }
 
-    const user = getUserByUsername(username);
+    const user = await getUserByUsername(username);
     if (!user || user.passwordHash !== password) {
       return NextResponse.json({ error: 'Username atau password salah' }, { status: 401 });
     }
