@@ -9,17 +9,12 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const user = clientDb.getCurrentUser();
-    if (user) {
-      router.replace('/dashboard');
-    } else {
-      router.replace('/login');
-    }
+    router.replace('/dashboard');
   }, [router]);
 
   return (
     <div className="min-h-screen bg-[#0c0806] flex items-center justify-center text-amber-400 font-bold">
-      Mengarahkan...
+      Mengarahkan ke Dashboard...
     </div>
   );
 }
