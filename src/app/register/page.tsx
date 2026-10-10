@@ -38,9 +38,15 @@ export default function RegisterPage() {
       if (data.sessionId) {
         clientDb.setSessionId(data.sessionId);
       }
-      localStorage.setItem('spinbracket_user', JSON.stringify(data.user));
-      router.push('/dashboard');
+      clientDb.setCurrentUser(data.user);
+      window.location.href = '/dashboard';
     } catch (err: any) {
+      // Offline fallback: try registering locally
+      const localReg = clientDb.register(username, password, name);
+      if (localReg.user) {
+        window.location.href = '/dashboard';
+        return;
+      }
       setError(err.message || 'Terjadi kesalahan');
     } finally {
       setLoading(false);

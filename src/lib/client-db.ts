@@ -145,11 +145,21 @@ export const clientDb = {
   getCurrentUser(): User | null {
     if (typeof window === 'undefined') return null;
     try {
-      const raw = localStorage.getItem(SESSION_KEY);
+      const raw = localStorage.getItem(SESSION_KEY) || localStorage.getItem('spinbracket_user');
       if (!raw) return null;
       return JSON.parse(raw);
     } catch {
       return null;
+    }
+  },
+
+  setCurrentUser(user: User): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      localStorage.setItem('spinbracket_user', JSON.stringify(user));
+    } catch (e) {
+      console.error('Failed to set current user', e);
     }
   },
 
@@ -202,7 +212,7 @@ export const clientDb = {
       return { error: 'Username atau password salah' };
     }
     if (typeof window !== 'undefined') {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+      this.setCurrentUser(user);
     }
     return { user };
   },
@@ -225,7 +235,7 @@ export const clientDb = {
     db.users.push(newUser);
     saveDb(db);
     if (typeof window !== 'undefined') {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+      this.setCurrentUser(newUser);
     }
     return { user: newUser };
   },
@@ -235,6 +245,7 @@ export const clientDb = {
       const u = this.getCurrentUser();
       const sid = this.getSessionId();
       localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem('spinbracket_user');
       localStorage.removeItem('spinbracket_session_id');
       try {
         await fetch('/api/auth/logout', {

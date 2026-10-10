@@ -7,7 +7,7 @@ import { showAlert } from '@/lib/sweetalert';
 
 /**
  * Hook to enforce single-device active session:
- * Sends heartbeat every 15s. If session was taken over by another device,
+ * Sends heartbeat every 20s. If session was taken over by another device,
  * alerts user and logs out immediately.
  */
 export function useSessionGuard() {
@@ -35,17 +35,15 @@ export function useSessionGuard() {
           }),
         });
 
-        if (res.status === 401 || res.status === 403) {
-          handleSessionTakenOver();
-          return;
-        }
-
-        const data = await res.json().catch(() => ({}));
-        if (data.valid === false && data.reason === 'SESSION_TAKEN_OVER') {
-          handleSessionTakenOver();
+        // ONLY kick out if server explicitly reports SESSION_TAKEN_OVER
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data && data.valid === false && data.reason === 'SESSION_TAKEN_OVER') {
+            handleSessionTakenOver();
+          }
         }
       } catch (err) {
-        // Network temporary failure, ignore
+        // Network temporary failure or offline, ignore to keep app functional
       }
     };
 
@@ -60,14 +58,11 @@ export function useSessionGuard() {
         'Akun Anda baru saja digunakan untuk login di perangkat lain. Sistem hanya mengizinkan 1 perangkat aktif.'
       );
 
-      router.push('/login');
+      window.location.href = '/login';
     };
 
-    // Initial check
-    checkSession();
-
-    // Periodic heartbeat every 15 seconds
-    const interval = setInterval(checkSession, 15000);
+    // Periodic heartbeat every 20 seconds (don't execute instantly to allow render)
+    const interval = setInterval(checkSession, 20000);
 
     return () => clearInterval(interval);
   }, [router]);
@@ -82,7 +77,7 @@ export function useSessionGuard() {
 
     if (confirmed) {
       await clientDb.logout();
-      router.push('/login');
+      window.location.href = '/login';
     }
   };
 
