@@ -1096,7 +1096,7 @@ export default function TvBracketPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                 </span>
-                {selectedMatch.participantB?.isBye ? 'SLOT BYPASS' : 'LIVE MATCH • SEDANG BERLANGSUNG'}
+                {selectedMatch.participantB?.isBye ? 'SLOT TANDING • SIAP' : 'LIVE MATCH • SEDANG BERLANGSUNG'}
               </div>
 
               {!selectedMatch.participantB?.isBye && (
@@ -1131,7 +1131,7 @@ export default function TvBracketPage() {
               </h3>
               <p className="text-xs md:text-sm text-coffee-300 font-medium">
                 {selectedMatch.participantB?.isBye
-                  ? 'Peserta ini berhak langsung melaju ke babak berikutnya, atau diadu lagi dengan peserta yang kalah sebelumnya:'
+                  ? 'Peserta ini dapat langsung diloloskan atau diadu dengan peserta yang kalah sebelumnya:'
                   : 'Sesi tanding sedang berlangsung di panggung. Klik nama peserta untuk menentukan pemenang saat penilaian selesai.'}
               </p>
             </div>
@@ -1184,7 +1184,7 @@ export default function TvBracketPage() {
                     className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-coffee-950 font-black text-sm shadow-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <Sparkles className="w-4 h-4" />
-                    LOLOSKAN SEKARANG (BYPASS TANPA LAWAN)
+                    LOLOSKAN LANGSUNG (TANPA LAWAN)
                   </button>
                   <p className="text-[11px] text-coffee-400 mt-2">
                     💡 Atau klik &quot;➕ Isi Lawan (Adu Lagi)&quot; di atas untuk mengadu dengan peserta yang kalah sebelumnya.
