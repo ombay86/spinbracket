@@ -75,6 +75,14 @@ export default function TvBracketPage() {
   const [customPhoto, setCustomPhoto] = useState('');
   const [selectedExistingId, setSelectedExistingId] = useState('');
 
+  // Drag and Drop Player Reshuffling in Bracket
+  const [draggedSlot, setDraggedSlot] = useState<{
+    matchId: string;
+    slot: 'A' | 'B';
+    participant: any;
+  } | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+
   // Live Battle Timer state for in-progress match popup
   const [battleSeconds, setBattleSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
@@ -457,6 +465,71 @@ export default function TvBracketPage() {
     showAlert.success('Peserta Disimpan!', `Slot ${slot === 'A' ? 'Merah' : 'Biru'} pada ${match.label} berhasil diperbarui.`, 1500);
   };
 
+  // Drag and drop reshuffle on TV bracket
+  const handleDropOnTvSlot = (targetMatchId: string, targetSlot: 'A' | 'B') => {
+    if (!draggedSlot || !tournament) return;
+
+    const sourceMatchId = draggedSlot.matchId;
+    const sourceSlot = draggedSlot.slot;
+
+    // Same slot
+    if (sourceMatchId === targetMatchId && sourceSlot === targetSlot) {
+      setDraggedSlot(null);
+      setDragOverTarget(null);
+      return;
+    }
+
+    const updatedMatches = { ...tournament.matches };
+    const destMatch = { ...updatedMatches[targetMatchId] };
+    const srcMatch = sourceMatchId === targetMatchId ? destMatch : { ...updatedMatches[sourceMatchId] };
+
+    // Don't allow reshuffling completed matches
+    if (destMatch.status === 'completed' || srcMatch.status === 'completed') {
+      showAlert.warning('Tidak Dapat Ditukar', 'Pertandingan yang sudah selesai tidak dapat ditukar posisinya.');
+      setDraggedSlot(null);
+      setDragOverTarget(null);
+      return;
+    }
+
+    const currentDestSlot = targetSlot === 'A' ? destMatch.participantA : destMatch.participantB;
+    const currentSrcSlot = sourceSlot === 'A' ? srcMatch.participantA : srcMatch.participantB;
+
+    // Swap slots
+    if (targetSlot === 'A') {
+      destMatch.participantA = currentSrcSlot ? { ...currentSrcSlot } : null;
+    } else {
+      destMatch.participantB = currentSrcSlot ? { ...currentSrcSlot } : null;
+    }
+
+    if (sourceSlot === 'A') {
+      srcMatch.participantA = currentDestSlot ? { ...currentDestSlot } : null;
+    } else {
+      srcMatch.participantB = currentDestSlot ? { ...currentDestSlot } : null;
+    }
+
+    // Update readiness
+    destMatch.status = destMatch.participantA?.participantId && destMatch.participantB?.participantId ? 'ready' : 'pending';
+    srcMatch.status = srcMatch.participantA?.participantId && srcMatch.participantB?.participantId ? 'ready' : 'pending';
+
+    updatedMatches[targetMatchId] = destMatch;
+    if (sourceMatchId !== targetMatchId) {
+      updatedMatches[sourceMatchId] = srcMatch;
+    }
+
+    const updatedTournament: Tournament = {
+      ...tournament,
+      matches: updatedMatches,
+      updatedAt: new Date().toISOString(),
+    };
+
+    clientDb.saveTournament(updatedTournament);
+    setTournament(updatedTournament);
+    showAlert.success('Posisi Pemain Ditukar!', `Pemain berhasil dipindahkan ke ${destMatch.label} (Slot ${targetSlot}).`, 1500);
+
+    setDraggedSlot(null);
+    setDragOverTarget(null);
+  };
+
   const handleOpenGrandFinale = () => {
     setShowGrandChampionModal(true);
   };
@@ -583,11 +656,39 @@ export default function TvBracketPage() {
 
         {/* Participant A */}
         <div
+          onDragOver={(e) => {
+            if (!isCompleted) {
+              e.preventDefault();
+              setDragOverTarget(`${match.id}-A`);
+            }
+          }}
+          onDragLeave={() => setDragOverTarget(null)}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleDropOnTvSlot(match.id, 'A');
+          }}
+          draggable={hasSlotA && !isCompleted}
+          onDragStart={(e) => {
+            if (hasSlotA && !isCompleted && match.participantA) {
+              e.stopPropagation();
+              setDraggedSlot({
+                matchId: match.id,
+                slot: 'A',
+                participant: match.participantA,
+              });
+            }
+          }}
+          onDragEnd={() => {
+            setDraggedSlot(null);
+            setDragOverTarget(null);
+          }}
           className={`flex items-center justify-between mb-1 px-3 py-1.5 rounded-xl group/slot relative transition ${
-            match.winnerId === match.participantA?.participantId
+            dragOverTarget === `${match.id}-A`
+              ? 'bg-gold-500/40 border-2 border-gold-400 scale-[1.02] shadow-[0_0_12px_rgba(234,179,8,0.5)]'
+              : match.winnerId === match.participantA?.participantId
               ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
               : hasSlotA
-              ? 'bg-black/50 text-white'
+              ? 'bg-black/50 text-white hover:border-gold-500/50 cursor-grab active:cursor-grabbing'
               : 'bg-black/25 text-coffee-500/60 border border-dashed border-coffee-800/40'
           }`}
         >
@@ -602,7 +703,7 @@ export default function TvBracketPage() {
                 hasSlotA ? 'font-black text-white' : 'font-normal italic text-coffee-500/70 text-xs md:text-sm'
               }`}
             >
-              {match.participantA?.name || 'Slot Kosong'}
+              {match.participantA?.name || (dragOverTarget === `${match.id}-A` ? 'Tukar ke sini' : 'Slot Kosong')}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-1">
@@ -624,11 +725,39 @@ export default function TvBracketPage() {
 
         {/* Participant B */}
         <div
+          onDragOver={(e) => {
+            if (!isCompleted) {
+              e.preventDefault();
+              setDragOverTarget(`${match.id}-B`);
+            }
+          }}
+          onDragLeave={() => setDragOverTarget(null)}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleDropOnTvSlot(match.id, 'B');
+          }}
+          draggable={hasSlotB && !isCompleted}
+          onDragStart={(e) => {
+            if (hasSlotB && !isCompleted && match.participantB) {
+              e.stopPropagation();
+              setDraggedSlot({
+                matchId: match.id,
+                slot: 'B',
+                participant: match.participantB,
+              });
+            }
+          }}
+          onDragEnd={() => {
+            setDraggedSlot(null);
+            setDragOverTarget(null);
+          }}
           className={`flex items-center justify-between px-3 py-1.5 rounded-xl group/slot relative transition ${
-            match.winnerId === match.participantB?.participantId
+            dragOverTarget === `${match.id}-B`
+              ? 'bg-gold-500/40 border-2 border-gold-400 scale-[1.02] shadow-[0_0_12px_rgba(234,179,8,0.5)]'
+              : match.winnerId === match.participantB?.participantId
               ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
               : hasSlotB
-              ? 'bg-black/50 text-white'
+              ? 'bg-black/50 text-white hover:border-gold-500/50 cursor-grab active:cursor-grabbing'
               : isBye
               ? 'bg-black/25 text-coffee-400/80 border border-dashed border-coffee-700/50'
               : 'bg-black/25 text-coffee-500/60 border border-dashed border-coffee-800/40'
@@ -651,7 +780,7 @@ export default function TvBracketPage() {
             >
               {isBye
                 ? '➕ Isi Lawan (Adu Lagi)'
-                : match.participantB?.name || 'Slot Kosong'}
+                : match.participantB?.name || (dragOverTarget === `${match.id}-B` ? 'Tukar ke sini' : 'Slot Kosong')}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-1">

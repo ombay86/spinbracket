@@ -12,6 +12,9 @@ import {
   RotateCcw,
   Coffee,
   Sparkles,
+  GripVertical,
+  ArrowRightLeft,
+  X,
 } from 'lucide-react';
 import { clientDb, Tournament, Participant, Match } from '@/lib/client-db';
 import { SpinWheel } from '@/components/SpinWheel';
@@ -28,6 +31,13 @@ export default function SpinWheelPage() {
   const [loading, setLoading] = useState(true);
   const [isSpinning, setIsSpinning] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  const [draggedItem, setDraggedItem] = useState<{
+    type: 'slot' | 'unassigned';
+    matchId?: string;
+    slot?: 'A' | 'B';
+    participant: any;
+  } | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
 
   const fetchTournament = () => {
     try {
@@ -46,6 +56,18 @@ export default function SpinWheelPage() {
 
   useEffect(() => {
     fetchTournament();
+
+    clientDb.fetchTournamentByIdAsync(tournamentId).then((fresh) => {
+      if (fresh) setTournament(fresh);
+    });
+
+    const handleSynced = () => {
+      const fresh = clientDb.getTournamentById(tournamentId);
+      if (fresh) setTournament(fresh);
+    };
+
+    window.addEventListener('spinbracket_data_synced', handleSynced);
+    return () => window.removeEventListener('spinbracket_data_synced', handleSynced);
   }, [tournamentId]);
 
   if (loading || !tournament) {
@@ -237,6 +259,118 @@ export default function SpinWheelPage() {
     }
   };
 
+  // Drag and Drop: Reshuffle and swap player between slots or from unassigned pool
+  const handleDropOnSlot = (targetMatchId: string, targetSlot: 'A' | 'B') => {
+    if (!draggedItem || !tournament) return;
+
+    const updatedMatches = { ...tournament.matches };
+    const destMatch = { ...updatedMatches[targetMatchId] };
+    const currentDestSlot = targetSlot === 'A' ? destMatch.participantA : destMatch.participantB;
+
+    if (draggedItem.type === 'slot') {
+      const sourceMatchId = draggedItem.matchId!;
+      const sourceSlot = draggedItem.slot!;
+
+      // If dropped onto the exact same slot, do nothing
+      if (sourceMatchId === targetMatchId && sourceSlot === targetSlot) {
+        setDraggedItem(null);
+        setDragOverTarget(null);
+        return;
+      }
+
+      const srcMatch = sourceMatchId === targetMatchId ? destMatch : { ...updatedMatches[sourceMatchId] };
+      const sourceParticipant = sourceSlot === 'A' ? srcMatch.participantA : srcMatch.participantB;
+
+      // Swap contents: target gets sourceParticipant, source gets currentDestSlot
+      if (targetSlot === 'A') {
+        destMatch.participantA = sourceParticipant ? { ...sourceParticipant } : null;
+      } else {
+        destMatch.participantB = sourceParticipant ? { ...sourceParticipant } : null;
+      }
+
+      if (sourceSlot === 'A') {
+        srcMatch.participantA = currentDestSlot ? { ...currentDestSlot } : null;
+      } else {
+        srcMatch.participantB = currentDestSlot ? { ...currentDestSlot } : null;
+      }
+
+      // Recheck readiness
+      destMatch.status = destMatch.participantA?.participantId && destMatch.participantB?.participantId ? 'ready' : 'pending';
+      srcMatch.status = srcMatch.participantA?.participantId && srcMatch.participantB?.participantId ? 'ready' : 'pending';
+
+      updatedMatches[targetMatchId] = destMatch;
+      if (sourceMatchId !== targetMatchId) {
+        updatedMatches[sourceMatchId] = srcMatch;
+      }
+    } else if (draggedItem.type === 'unassigned') {
+      // Dragging directly from unassigned pool into a slot
+      const p = draggedItem.participant as Participant;
+      const slotData = {
+        participantId: p.id,
+        name: p.name,
+        affiliation: p.affiliation,
+        photo: p.photo,
+      };
+
+      if (targetSlot === 'A') {
+        destMatch.participantA = slotData;
+      } else {
+        destMatch.participantB = slotData;
+      }
+
+      destMatch.status = destMatch.participantA?.participantId && destMatch.participantB?.participantId ? 'ready' : 'pending';
+      updatedMatches[targetMatchId] = destMatch;
+    }
+
+    try {
+      const updatedTournament: Tournament = {
+        ...tournament,
+        matches: updatedMatches,
+        status: 'in_progress',
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
+      setSaveStatus('Perubahan posisi pemain tersimpan ✓');
+      setTimeout(() => setSaveStatus(''), 2500);
+    } catch (e) {
+      console.error(e);
+      showAlert.error('Gagal Memindahkan', 'Terjadi kesalahan saat memindahkan pemain.');
+    } finally {
+      setDraggedItem(null);
+      setDragOverTarget(null);
+    }
+  };
+
+  // Remove participant from slot back to pool
+  const handleRemoveFromSlot = (matchId: string, slot: 'A' | 'B', e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!tournament) return;
+
+    const updatedMatches = { ...tournament.matches };
+    const m = { ...updatedMatches[matchId] };
+
+    if (slot === 'A') {
+      m.participantA = null;
+    } else {
+      m.participantB = null;
+    }
+    m.status = 'pending';
+    updatedMatches[matchId] = m;
+
+    try {
+      const updatedTournament: Tournament = {
+        ...tournament,
+        matches: updatedMatches,
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedTournament);
+      setTournament(updatedTournament);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-coffee-950 via-coffee-900 to-black text-white p-6">
       <div className="max-w-7xl mx-auto">
@@ -294,21 +428,66 @@ export default function SpinWheelPage() {
 
         {/* Content Grid: Left Spinwheel, Right Match Pairings List */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Spinwheel Engine */}
-          <div className="lg:col-span-7 bg-coffee-900/70 border border-gold-500/30 rounded-3xl p-6 shadow-2xl flex flex-col items-center">
-            <SpinWheel
-              candidates={availableParticipants}
-              targetSlotLabel={targetSlotLabel}
-              onSelected={handleAssignWinner}
-              onAutoDrawAll={handleAutoDrawAll}
-              isSpinning={isSpinning}
-              setIsSpinning={setIsSpinning}
-            />
+          {/* Left Column: Spinwheel Engine & Unassigned Candidates Pool */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            <div className="bg-coffee-900/70 border border-gold-500/30 rounded-3xl p-6 shadow-2xl flex flex-col items-center">
+              <SpinWheel
+                candidates={availableParticipants}
+                targetSlotLabel={targetSlotLabel}
+                onSelected={handleAssignWinner}
+                onAutoDrawAll={handleAutoDrawAll}
+                isSpinning={isSpinning}
+                setIsSpinning={setIsSpinning}
+              />
+            </div>
+
+            {/* Unassigned Candidates Drag Pool */}
+            {availableParticipants.length > 0 && (
+              <div className="bg-coffee-900/60 border border-coffee-800 rounded-3xl p-5 shadow-lg">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-coffee-800/80">
+                  <div className="flex items-center gap-2 text-sm font-bold text-gold-300">
+                    <Users className="w-4 h-4 text-gold-400" />
+                    <span>Peserta Belum Masuk Slot ({availableParticipants.length})</span>
+                  </div>
+                  <span className="text-[11px] text-coffee-400">
+                    Bisa di-drag langsung ke slot sebelah kanan 👉
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+                  {availableParticipants.map((p) => (
+                    <div
+                      key={p.id}
+                      draggable
+                      onDragStart={() => {
+                        setDraggedItem({
+                          type: 'unassigned',
+                          participant: p,
+                        });
+                      }}
+                      onDragEnd={() => {
+                        setDraggedItem(null);
+                        setDragOverTarget(null);
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-coffee-950/90 border border-coffee-700 hover:border-gold-400 text-xs text-white font-medium cursor-grab active:cursor-grabbing hover:bg-coffee-800 transition select-none group"
+                    >
+                      <GripVertical className="w-3 h-3 text-coffee-500 group-hover:text-gold-400" />
+                      <span className="font-bold">{p.name}</span>
+                      {p.affiliation && (
+                        <span className="text-[10px] text-coffee-400 font-normal truncate max-w-[80px]">
+                          ({p.affiliation})
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Right Column: Live Match Pairing Queue */}
+          {/* Right Column: Live Match Pairing Queue & Drag-and-Drop Arena */}
           <div className="lg:col-span-5 bg-coffee-900/60 border border-coffee-800 rounded-3xl p-6 flex flex-col h-[750px]">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-coffee-800">
+            <div className="flex items-center justify-between mb-2 pb-3 border-b border-coffee-800">
               <h2 className="text-lg font-black text-white flex items-center gap-2">
                 <Coffee className="w-5 h-5 text-gold-400" /> Pairing Babak 1 ({round1Matches.length} Battle)
               </h2>
@@ -317,10 +496,20 @@ export default function SpinWheelPage() {
               </span>
             </div>
 
+            {/* Instruction tooltip */}
+            <div className="mb-3 px-3 py-2 rounded-xl bg-gold-500/10 border border-gold-500/20 flex items-center gap-2 text-[11px] text-gold-300">
+              <ArrowRightLeft className="w-4 h-4 shrink-0 text-gold-400" />
+              <span>
+                <b>Tips Reshuffle:</b> Tarik (drag) nama pemain dan lepas (drop) ke slot lain untuk bertukar posisi atau mengisi slot.
+              </span>
+            </div>
+
             {/* Scrollable match pairing list */}
             <div className="overflow-y-auto space-y-3 pr-2 flex-1">
               {round1Matches.map((m) => {
                 const isCurrentTarget = targetMatch?.id === m.id;
+                const isOverA = dragOverTarget === `${m.id}-A`;
+                const isOverB = dragOverTarget === `${m.id}-B`;
 
                 return (
                   <div
@@ -344,51 +533,137 @@ export default function SpinWheelPage() {
                       )}
                     </div>
 
-                    <div className="space-y-1.5 text-xs">
+                    <div className="space-y-2 text-xs">
                       {/* Slot A */}
                       <div
-                        className={`p-2 rounded-xl flex items-center justify-between ${
-                          m.participantA?.participantId
-                            ? 'bg-coffee-900 border border-coffee-700 text-white'
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverTarget(`${m.id}-A`);
+                        }}
+                        onDragLeave={() => setDragOverTarget(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          handleDropOnSlot(m.id, 'A');
+                        }}
+                        className={`p-2 rounded-xl flex items-center justify-between transition-all select-none ${
+                          isOverA
+                            ? 'bg-gold-500/30 border-2 border-gold-400 scale-[1.02] shadow-[0_0_15px_rgba(234,179,8,0.4)]'
+                            : m.participantA?.participantId
+                            ? 'bg-coffee-900 border border-coffee-700 hover:border-gold-500/60 text-white cursor-grab active:cursor-grabbing'
                             : isCurrentTarget && targetSlot === 'A'
-                            ? 'bg-amber-500/20 border border-amber-400 text-amber-300 animate-pulse'
-                            : 'bg-coffee-950 border border-dashed border-coffee-800 text-coffee-500'
+                            ? 'bg-amber-500/20 border-2 border-dashed border-amber-400 text-amber-300 animate-pulse'
+                            : 'bg-coffee-950 border border-dashed border-coffee-800 text-coffee-500 hover:border-coffee-600'
                         }`}
+                        draggable={!!m.participantA?.participantId}
+                        onDragStart={() => {
+                          if (m.participantA?.participantId) {
+                            setDraggedItem({
+                              type: 'slot',
+                              matchId: m.id,
+                              slot: 'A',
+                              participant: m.participantA,
+                            });
+                          }
+                        }}
+                        onDragEnd={() => {
+                          setDraggedItem(null);
+                          setDragOverTarget(null);
+                        }}
                       >
                         <div className="flex items-center gap-2 truncate">
+                          {m.participantA?.participantId ? (
+                            <GripVertical className="w-3.5 h-3.5 text-coffee-500 hover:text-gold-400 shrink-0" />
+                          ) : (
+                            <span className="w-3.5 h-3.5 shrink-0" />
+                          )}
                           <span className="w-4 h-4 rounded-full bg-red-600/80 text-[10px] font-bold text-white flex items-center justify-center shrink-0">
                             A
                           </span>
                           <span className="font-semibold truncate">
-                            {m.participantA?.name || 'Slot Kosong'}
+                            {m.participantA?.name || (isOverA ? 'Lepas di sini untuk pasang' : 'Slot Kosong')}
                           </span>
                         </div>
-                        <span className="text-[10px] text-coffee-400 truncate max-w-[120px]">
-                          {m.participantA?.affiliation || ''}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="text-[10px] text-coffee-400 truncate max-w-[100px]">
+                            {m.participantA?.affiliation || ''}
+                          </span>
+                          {m.participantA?.participantId && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveFromSlot(m.id, 'A', e)}
+                              className="p-1 rounded hover:bg-red-950/60 text-coffee-500 hover:text-red-400 transition"
+                              title="Keluarkan pemain ke daftar acak"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Slot B */}
                       <div
-                        className={`p-2 rounded-xl flex items-center justify-between ${
-                          m.participantB?.participantId
-                            ? 'bg-coffee-900 border border-coffee-700 text-white'
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragOverTarget(`${m.id}-B`);
+                        }}
+                        onDragLeave={() => setDragOverTarget(null)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          handleDropOnSlot(m.id, 'B');
+                        }}
+                        className={`p-2 rounded-xl flex items-center justify-between transition-all select-none ${
+                          isOverB
+                            ? 'bg-gold-500/30 border-2 border-gold-400 scale-[1.02] shadow-[0_0_15px_rgba(234,179,8,0.4)]'
+                            : m.participantB?.participantId
+                            ? 'bg-coffee-900 border border-coffee-700 hover:border-gold-500/60 text-white cursor-grab active:cursor-grabbing'
                             : isCurrentTarget && targetSlot === 'B'
-                            ? 'bg-blue-500/20 border border-blue-400 text-blue-300 animate-pulse'
-                            : 'bg-coffee-950 border border-dashed border-coffee-800 text-coffee-500'
+                            ? 'bg-blue-500/20 border-2 border-dashed border-blue-400 text-blue-300 animate-pulse'
+                            : 'bg-coffee-950 border border-dashed border-coffee-800 text-coffee-500 hover:border-coffee-600'
                         }`}
+                        draggable={!!m.participantB?.participantId}
+                        onDragStart={() => {
+                          if (m.participantB?.participantId) {
+                            setDraggedItem({
+                              type: 'slot',
+                              matchId: m.id,
+                              slot: 'B',
+                              participant: m.participantB,
+                            });
+                          }
+                        }}
+                        onDragEnd={() => {
+                          setDraggedItem(null);
+                          setDragOverTarget(null);
+                        }}
                       >
                         <div className="flex items-center gap-2 truncate">
+                          {m.participantB?.participantId ? (
+                            <GripVertical className="w-3.5 h-3.5 text-coffee-500 hover:text-gold-400 shrink-0" />
+                          ) : (
+                            <span className="w-3.5 h-3.5 shrink-0" />
+                          )}
                           <span className="w-4 h-4 rounded-full bg-blue-600/80 text-[10px] font-bold text-white flex items-center justify-center shrink-0">
                             B
                           </span>
                           <span className="font-semibold truncate">
-                            {m.participantB?.name || 'Slot Kosong'}
+                            {m.participantB?.name || (isOverB ? 'Lepas di sini untuk pasang' : 'Slot Kosong')}
                           </span>
                         </div>
-                        <span className="text-[10px] text-coffee-400 truncate max-w-[120px]">
-                          {m.participantB?.affiliation || ''}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="text-[10px] text-coffee-400 truncate max-w-[100px]">
+                            {m.participantB?.affiliation || ''}
+                          </span>
+                          {m.participantB?.participantId && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleRemoveFromSlot(m.id, 'B', e)}
+                              className="p-1 rounded hover:bg-red-950/60 text-coffee-500 hover:text-red-400 transition"
+                              title="Keluarkan pemain ke daftar acak"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
