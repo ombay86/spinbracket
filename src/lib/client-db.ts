@@ -10,8 +10,8 @@ export const JURNALOMBAY_API =
   typeof window !== 'undefined'
     ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:4000/api/tournaments'
-        : '/api/tournaments')
-    : (process.env.JURNALOMBAY_API_URL || 'http://localhost:4000/api/tournaments');
+        : (process.env.NEXT_PUBLIC_JURNALOMBAY_API || 'https://jurnalombay.my.id/api/tournaments'))
+    : (process.env.JURNALOMBAY_API_URL || (process.env.NODE_ENV === 'production' ? 'https://jurnalombay.my.id/api/tournaments' : 'http://localhost:4000/api/tournaments'));
 
 // Background sync functions with Jurnal Ombay master database
 async function syncTournamentToBackend(tournament: Tournament) {
