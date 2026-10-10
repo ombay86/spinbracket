@@ -286,21 +286,35 @@ export default function DashboardPage() {
         </div>
 
         {tournaments.length === 0 ? (
-          <div className="text-center py-20 rounded-3xl bg-coffee-950/60 border border-coffee-800 p-8">
-            <div className="w-16 h-16 rounded-full bg-coffee-800/60 mx-auto flex items-center justify-center text-coffee-400 mb-4">
+          <div className="text-center py-20 rounded-3xl bg-coffee-950/60 border border-coffee-800 p-8 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-gold-500/10 border border-gold-500/30 mx-auto flex items-center justify-center text-gold-400 mb-4 shadow-[0_0_20px_rgba(234,179,8,0.2)]">
               <Trophy className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Belum ada turnamen</h3>
-            <p className="text-sm text-coffee-400 max-w-md mx-auto mb-6">
-              Mulai dengan membuat turnamen baru atau klik tombol &quot;Muat Contoh KKB 2026 (28 Peserta)&quot; untuk langsung mencoba bagan panggung.
+            <h3 className="text-xl font-black text-white mb-2">Belum Ada Turnamen</h3>
+            <p className="text-sm text-coffee-400 max-w-md mx-auto mb-8 font-medium">
+              Belum ada turnamen yang tersimpan. Klik tombol di bawah ini untuk memulai turnamen baru Anda atau muat preset contoh.
             </p>
-            <button
-              onClick={handleSeedSample}
-              disabled={seeding}
-              className="px-6 py-3 rounded-xl bg-gold-500 text-coffee-950 font-bold hover:bg-gold-400 transition"
-            >
-              {seeding ? 'Memuat...' : 'Muat Contoh KKB 2026'}
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => {
+                  setNewTitle('');
+                  setShowCreateModal(true);
+                }}
+                className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-sm shadow-[0_0_20px_rgba(234,179,8,0.4)] transition active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                Mulai Turnamen Baru
+              </button>
+
+              <button
+                onClick={handleSeedSample}
+                disabled={seeding}
+                className="flex items-center gap-2 px-5 py-3.5 rounded-xl bg-coffee-800 hover:bg-coffee-700 text-coffee-200 border border-coffee-700 font-bold text-sm shadow transition"
+              >
+                <Coffee className="w-4 h-4 text-gold-400" />
+                {seeding ? 'Memuat Preset...' : 'Muat Contoh KKB 2026 (28 Peserta)'}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

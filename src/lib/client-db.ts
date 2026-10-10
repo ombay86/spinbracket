@@ -191,7 +191,7 @@ function getInitialDb(): LocalDatabase {
 
   return {
     users: [defaultAdmin],
-    tournaments: [buildDefaultSampleTournament()],
+    tournaments: [],
   };
 }
 
@@ -205,8 +205,8 @@ function loadDb(): LocalDatabase {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    if (!parsed.tournaments || parsed.tournaments.length === 0) {
-      parsed.tournaments = [buildDefaultSampleTournament()];
+    if (!parsed.tournaments || !Array.isArray(parsed.tournaments)) {
+      parsed.tournaments = [];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
     }
     return parsed;
