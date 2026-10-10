@@ -465,6 +465,77 @@ export default function TvBracketPage() {
     showAlert.success('Peserta Disimpan!', `Slot ${slot === 'A' ? 'Merah' : 'Biru'} pada ${match.label} berhasil diperbarui.`, 1500);
   };
 
+  // Option: Loloskan Langsung (Bypass / Walkover) ke babak berikutnya
+  const handleBypassPass = async (match: Match) => {
+    if (!match.participantA?.participantId) {
+      showAlert.warning('Peserta Belum Ada', 'Slot Sudut Merah harus diisi terlebih dahulu sebelum diloloskan.');
+      return;
+    }
+
+    const confirmed = await showAlert.confirm({
+      title: 'Loloskan Pemain (Bypass)?',
+      text: `Peserta "${match.participantA.name}" akan langsung lolos ke babak berikutnya tanpa harus bertanding.`,
+      confirmText: 'Ya, Loloskan Pemain',
+      cancelText: 'Batal',
+      icon: 'question',
+    });
+    if (!confirmed) return;
+
+    setShowSlotModal(false);
+    await handleSelectWinner(match, 'A');
+  };
+
+  // Option: Acak / Shuffle Lawan dari Peserta yang Kalah Sebelumnya
+  const handleShuffleDefeatedOpponent = (match: Match, slot: 'A' | 'B') => {
+    if (!tournament) return;
+
+    // Collect all defeated participants from completed matches
+    const defeatedMap = new Map<string, Participant>();
+    Object.values(tournament.matches || {}).forEach((m) => {
+      if (m.status === 'completed' && m.winnerId) {
+        const loser = m.winnerId === m.participantA?.participantId ? m.participantB : m.participantA;
+        if (loser && loser.participantId && !loser.isBye) {
+          defeatedMap.set(loser.participantId, {
+            id: loser.participantId,
+            name: loser.name || 'Peserta',
+            affiliation: loser.affiliation || '',
+            photo: loser.photo || '',
+          });
+        }
+      }
+    });
+
+    const defeatedList = Array.from(defeatedMap.values());
+    if (defeatedList.length === 0) {
+      showAlert.warning('Belum Ada Peserta yang Kalah', 'Belum ada pertandingan sebelumnya yang selesai dengan peserta kalah untuk diundi ulang.');
+      return;
+    }
+
+    // Pick random loser
+    const randomLoser = defeatedList[Math.floor(Math.random() * defeatedList.length)];
+    setSelectedExistingId(randomLoser.id);
+    setCustomName(randomLoser.name);
+    setCustomAffiliation(randomLoser.affiliation || '');
+    setCustomPhoto(randomLoser.photo || '');
+
+    showAlert.success('Lawan Terpilih Acak!', `🥊 Terpilih: ${randomLoser.name} (${randomLoser.affiliation || 'Peserta Kalah'}). Silakan klik "Simpan ke Bagan".`, 2000);
+  };
+
+  // Check if round 1 can still add participants (active if round 1 not completed, or odd players remain)
+  const canAddParticipantInRound = (rIndex: number): boolean => {
+    if (!tournament) return false;
+    const r = tournament.rounds[rIndex];
+    if (!r) return false;
+
+    // If this round is not completed yet, allowed!
+    const roundDone = isRoundCompleted(rIndex);
+    if (!roundDone) return true;
+
+    // If completed, only allowed if total active players or remaining is odd
+    const activeParticipants = tournament.participants.length;
+    return activeParticipants % 2 !== 0;
+  };
+
   // Drag and drop reshuffle on TV bracket
   const handleDropOnTvSlot = (targetMatchId: string, targetSlot: 'A' | 'B') => {
     if (!draggedSlot || !tournament) return;
@@ -1200,11 +1271,51 @@ export default function TvBracketPage() {
                 className="flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 overflow-hidden shadow-xl"
               >
                 {/* Round Header */}
-                <div className="text-center bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-coffee-950 uppercase tracking-wider shadow py-2 px-2 mb-2 rounded-xl">
-                  <div className="truncate text-xs md:text-sm font-black">{round.name}</div>
-                  <div className="truncate mt-0.5 text-[10px] md:text-[11px] font-bold text-coffee-950/80">
-                    {round.subTitle ? round.subTitle.replace(/\s*\+\s*1\s*BYPASS/gi, '') : `${matchCount} BATTLE`}
+                <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-coffee-950 uppercase tracking-wider shadow py-2 px-2.5 mb-2 rounded-xl flex items-center justify-between">
+                  <div className="truncate text-left">
+                    <div className="truncate text-xs md:text-sm font-black">{round.name}</div>
+                    <div className="truncate mt-0.5 text-[10px] md:text-[11px] font-bold text-coffee-950/80">
+                      {round.subTitle ? round.subTitle.replace(/\s*\+\s*1\s*BYPASS/gi, '') : `${matchCount} BATTLE`}
+                    </div>
                   </div>
+
+                  {/* Tombol di luar box battle untuk menambahkan pemain (khusus babak 1 atau saat sisa ganjil) */}
+                  {round.index === 0 && (
+                    <button
+                      type="button"
+                      disabled={!canAddParticipantInRound(round.index)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Find first open slot or open slot in pending match
+                        const openMatch = matchIds
+                          .map((id) => tournament.matches[id])
+                          .find((m) => m && (!m.participantA?.participantId || (!m.participantB?.participantId && !m.participantB?.isBye)));
+                        if (openMatch) {
+                          const targetSlot = !openMatch.participantA?.participantId ? 'A' : 'B';
+                          handleOpenSlotAssign(openMatch, targetSlot);
+                        } else {
+                          // If all slots are filled, open slot modal on last match or prompt to edit
+                          const lastM = tournament.matches[matchIds[matchIds.length - 1]];
+                          if (lastM) {
+                            handleOpenSlotAssign(lastM, 'B');
+                          }
+                        }
+                      }}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-black shadow transition active:scale-95 ${
+                        canAddParticipantInRound(round.index)
+                          ? 'bg-coffee-950 text-gold-300 hover:bg-black border border-gold-400 cursor-pointer animate-pulse'
+                          : 'bg-coffee-950/40 text-coffee-500/60 border border-coffee-800/40 cursor-not-allowed pointer-events-none opacity-50'
+                      }`}
+                      title={
+                        canAddParticipantInRound(round.index)
+                          ? 'Tambah pemain baru ke babak 1'
+                          : 'Babak 1 sudah selesai (dinonaktifkan agar tidak mengganggu babak berikutnya)'
+                      }
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>+ Tambah Pemain</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Match Cards List */}
@@ -1552,10 +1663,49 @@ export default function TvBracketPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Opsi 1: Pilih dari Peserta (Termasuk Peserta yang Kalah Sebelumnya) */}
+              {/* Opsi Cepat (Quick Actions) */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Opsi 1: Loloskan Langsung / Bypass */}
+                <button
+                  type="button"
+                  onClick={() => handleBypassPass(slotTarget.match)}
+                  className="p-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/60 text-left transition flex flex-col justify-between group active:scale-95"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider">Opsi 1</span>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition duration-300" />
+                  </div>
+                  <div className="text-xs font-black text-white group-hover:text-amber-200">
+                    Loloskan Langsung (Bypass)
+                  </div>
+                  <p className="text-[10px] text-coffee-300 mt-1 line-clamp-2">
+                    Loloskan pemain Sudut Merah ke babak selanjutnya tanpa tanding
+                  </p>
+                </button>
+
+                {/* Opsi 2: Shuffle / Acak dari Peserta yang Kalah */}
+                <button
+                  type="button"
+                  onClick={() => handleShuffleDefeatedOpponent(slotTarget.match, slotTarget.slot)}
+                  className="p-3 rounded-2xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/60 text-left transition flex flex-col justify-between group active:scale-95"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black uppercase text-purple-300 tracking-wider">Opsi 2</span>
+                    <Shuffle className="w-3.5 h-3.5 text-purple-400 group-hover:rotate-180 transition duration-300" />
+                  </div>
+                  <div className="text-xs font-black text-white group-hover:text-purple-200">
+                    Acak dari Peserta Kalah
+                  </div>
+                  <p className="text-[10px] text-coffee-300 mt-1 line-clamp-2">
+                    Undi lawan wildcard secara acak dari peserta battle sebelumnya yang gugur
+                  </p>
+                </button>
+              </div>
+
+              {/* Opsi 3: Pilih Peserta dari Dropdown (Termasuk Peserta yang Kalah Sebelumnya) */}
               <div>
                 <label className="block text-xs font-bold text-gold-400 mb-1.5 uppercase tracking-wider">
-                  Pilih Peserta (Termasuk Peserta yang Kalah):
+                  Atau Pilih Peserta / Wildcard Manual:
                 </label>
                 {(() => {
                   // Cari peserta yang kalah dari match yang sudah selesai
