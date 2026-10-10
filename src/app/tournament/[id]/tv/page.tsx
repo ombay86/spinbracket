@@ -702,16 +702,32 @@ export default function TvBracketPage() {
     const hasSlotA = !!match.participantA?.participantId;
     const hasSlotB = !!match.participantB?.participantId && !match.participantB?.isBye;
 
+    // Match is playable if completed, or has both participants, or is bypass
+    const isPlayable = isCompleted || (hasSlotA && (hasSlotB || isBye));
+
+    const handleCardClick = () => {
+      if (!isPlayable) {
+        showAlert.warning(
+          'Pertandingan Belum Siap',
+          `Slot peserta pada ${displayLabel} belum lengkap atau babak sebelumnya belum selesai diadu. Silakan selesaikan babak sebelumnya terlebih dahulu.`
+        );
+        return;
+      }
+      setSelectedMatch(match);
+    };
+
     return (
       <div
         key={match.id}
-        onClick={() => setSelectedMatch(match)}
-        className={`cursor-pointer shrink-0 flex flex-col justify-center transition hover:scale-[1.01] p-3 rounded-2xl ${
+        onClick={handleCardClick}
+        className={`shrink-0 flex flex-col justify-center transition p-3 rounded-2xl ${
+          isPlayable ? 'cursor-pointer hover:scale-[1.01]' : 'cursor-not-allowed opacity-60'
+        } ${
           isProminent ? 'border-2 shadow-lg' : 'border'
         } ${
           isCompleted
             ? 'bg-[#1e130c] border-gold-500/80 shadow-[0_0_15px_rgba(234,179,8,0.2)]'
-            : hasSlotA && (hasSlotB || isBye)
+            : isPlayable
             ? 'bg-[#241710] border-coffee-700 hover:border-gold-400 shadow-md'
             : 'bg-[#140d09] border-coffee-900/80 text-coffee-600'
         }`}
@@ -720,8 +736,10 @@ export default function TvBracketPage() {
           <span className="truncate">{displayLabel}</span>
           {isCompleted ? (
             <Check className="text-emerald-400 w-3.5 h-3.5 shrink-0" />
-          ) : (
+          ) : isPlayable ? (
             <ChevronRight className="text-coffee-500 w-3.5 h-3.5 shrink-0" />
+          ) : (
+            <span className="text-[10px] text-coffee-600 font-normal">Belum Siap</span>
           )}
         </div>
 
@@ -1059,152 +1077,190 @@ export default function TvBracketPage() {
             {/* The Final Battles: Grand Final & Perebutan Juara 3 */}
             <div className="relative z-10 flex-1 flex flex-col justify-around gap-2.5 my-1">
               {/* 1. GRAND FINAL CARD (Juara 1 & 2) */}
-              {grandFinalMatch && (
-                <div
-                  onClick={() => setSelectedMatch(grandFinalMatch)}
-                  className={`cursor-pointer rounded-2xl border-2 p-3.5 transition hover:scale-[1.01] shadow-xl ${
-                    grandFinalMatch.status === 'completed'
-                      ? 'bg-gradient-to-r from-[#2e1d0f] to-[#201309] border-gold-400 shadow-[0_0_25px_rgba(234,179,8,0.5)]'
-                      : grandFinalMatch.participantA?.participantId && grandFinalMatch.participantB?.participantId
-                      ? 'bg-gradient-to-r from-[#2c1a0e] via-[#22140a] to-[#2c1a0e] border-gold-500 hover:border-gold-300 animate-vs-glow'
-                      : 'bg-[#180f0a] border-coffee-800 text-coffee-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gold-500/30">
-                    <div className="flex items-center gap-1.5 text-xs md:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 to-gold-400">
-                      <Crown className="w-4 h-4 text-gold-400" />
-                      <span>GRAND FINAL • PEREBUTAN JUARA 1 & 2</span>
-                    </div>
-                    {grandFinalMatch.status === 'completed' ? (
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-gold-300">KLIK UNTUK TANDING</span>
-                    )}
-                  </div>
+              {grandFinalMatch && (() => {
+                const gfPlayable =
+                  grandFinalMatch.status === 'completed' ||
+                  (!!grandFinalMatch.participantA?.participantId && !!grandFinalMatch.participantB?.participantId);
 
-                  <div className="grid grid-cols-2 gap-2 text-center">
-                    {/* Finalis A */}
-                    <div
-                      className={`p-2 rounded-xl flex flex-col items-center justify-center ${
-                        grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId
-                          ? 'bg-gold-500 text-coffee-950 font-black shadow-lg'
-                          : 'bg-black/50 text-white'
-                      }`}
-                    >
-                      <span className="text-[10px] font-bold text-red-400 uppercase">SUDUT MERAH</span>
-                      <span className="text-xs md:text-sm font-black truncate max-w-full">
-                        {grandFinalMatch.participantA?.name ||
-                          (semiLeftId && tournament.matches[semiLeftId]
-                            ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiLeftId])}`
-                            : 'Pemenang Semifinal 1')}
-                      </span>
-                      {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
-                        <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
-                      )}
-                      {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
-                        <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
+                return (
+                  <div
+                    onClick={() => {
+                      if (!gfPlayable) {
+                        showAlert.warning(
+                          'Grand Final Belum Siap',
+                          'Peserta Semifinal 1 dan Semifinal 2 belum selesai bertanding. Silakan tentukan pemenang Semifinal terlebih dahulu.'
+                        );
+                        return;
+                      }
+                      setSelectedMatch(grandFinalMatch);
+                    }}
+                    className={`rounded-2xl border-2 p-3.5 transition shadow-xl ${
+                      gfPlayable ? 'cursor-pointer hover:scale-[1.01]' : 'cursor-not-allowed opacity-60'
+                    } ${
+                      grandFinalMatch.status === 'completed'
+                        ? 'bg-gradient-to-r from-[#2e1d0f] to-[#201309] border-gold-400 shadow-[0_0_25px_rgba(234,179,8,0.5)]'
+                        : gfPlayable
+                        ? 'bg-gradient-to-r from-[#2c1a0e] via-[#22140a] to-[#2c1a0e] border-gold-500 hover:border-gold-300 animate-vs-glow'
+                        : 'bg-[#180f0a] border-coffee-800 text-coffee-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gold-500/30">
+                      <div className="flex items-center gap-1.5 text-xs md:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 to-gold-400">
+                        <Crown className="w-4 h-4 text-gold-400" />
+                        <span>GRAND FINAL • PEREBUTAN JUARA 1 & 2</span>
+                      </div>
+                      {grandFinalMatch.status === 'completed' ? (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
+                      ) : gfPlayable ? (
+                        <span className="text-[10px] font-bold text-gold-300">KLIK UNTUK TANDING</span>
+                      ) : (
+                        <span className="text-[10px] text-coffee-500">BELUM SIAP</span>
                       )}
                     </div>
 
-                    {/* Finalis B */}
-                    <div
-                      className={`p-2 rounded-xl flex flex-col items-center justify-center ${
-                        grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId
-                          ? 'bg-gold-500 text-coffee-950 font-black shadow-lg'
-                          : 'bg-black/50 text-white'
-                      }`}
-                    >
-                      <span className="text-[10px] font-bold text-blue-400 uppercase">SUDUT BIRU</span>
-                      <span className="text-xs md:text-sm font-black truncate max-w-full">
-                        {grandFinalMatch.participantB?.name ||
-                          (semiRightId && tournament.matches[semiRightId]
-                            ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiRightId])}`
-                            : 'Pemenang Semifinal 2')}
-                      </span>
-                      {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
-                        <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
-                      )}
-                      {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
-                        <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
-                      )}
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      {/* Finalis A */}
+                      <div
+                        className={`p-2 rounded-xl flex flex-col items-center justify-center ${
+                          grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId
+                            ? 'bg-gold-500 text-coffee-950 font-black shadow-lg'
+                            : 'bg-black/50 text-white'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold text-red-400 uppercase">SUDUT MERAH</span>
+                        <span className="text-xs md:text-sm font-black truncate max-w-full">
+                          {grandFinalMatch.participantA?.name ||
+                            (semiLeftId && tournament.matches[semiLeftId]
+                              ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiLeftId])}`
+                              : 'Pemenang Semifinal 1')}
+                        </span>
+                        {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
+                          <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
+                        )}
+                        {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
+                          <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
+                        )}
+                      </div>
+
+                      {/* Finalis B */}
+                      <div
+                        className={`p-2 rounded-xl flex flex-col items-center justify-center ${
+                          grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId
+                            ? 'bg-gold-500 text-coffee-950 font-black shadow-lg'
+                            : 'bg-black/50 text-white'
+                        }`}
+                      >
+                        <span className="text-[10px] font-bold text-blue-400 uppercase">SUDUT BIRU</span>
+                        <span className="text-xs md:text-sm font-black truncate max-w-full">
+                          {grandFinalMatch.participantB?.name ||
+                            (semiRightId && tournament.matches[semiRightId]
+                              ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiRightId])}`
+                              : 'Pemenang Semifinal 2')}
+                        </span>
+                        {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
+                          <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
+                        )}
+                        {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
+                          <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* 2. PEREBUTAN JUARA 3 CARD */}
-              {thirdPlaceMatch && (
-                <div
-                  onClick={() => setSelectedMatch(thirdPlaceMatch)}
-                  className={`cursor-pointer rounded-2xl border-2 p-3 transition hover:scale-[1.01] shadow-lg ${
-                    thirdPlaceMatch.status === 'completed'
-                      ? 'bg-gradient-to-r from-[#24150d] to-[#180e08] border-amber-500/90 shadow-[0_0_20px_rgba(217,119,6,0.4)]'
-                      : thirdPlaceMatch.participantA?.participantId && thirdPlaceMatch.participantB?.participantId
-                      ? 'bg-gradient-to-r from-[#201309] to-[#160c06] border-amber-600/80 hover:border-amber-400'
-                      : 'bg-[#150d08] border-coffee-900 text-coffee-500'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-amber-600/30">
-                    <div className="flex items-center gap-1.5 text-xs font-black text-amber-300">
-                      <Medal className="w-3.5 h-3.5 text-amber-400" />
-                      <span>PEREBUTAN JUARA 3 (BRONZE MATCH)</span>
-                    </div>
-                    {thirdPlaceMatch.status === 'completed' ? (
-                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
-                    ) : (
-                      <span className="text-[10px] font-bold text-amber-400">KLIK UNTUK TANDING</span>
-                    )}
-                  </div>
+              {thirdPlaceMatch && (() => {
+                const tpPlayable =
+                  thirdPlaceMatch.status === 'completed' ||
+                  (!!thirdPlaceMatch.participantA?.participantId && !!thirdPlaceMatch.participantB?.participantId);
 
-                  <div className="grid grid-cols-2 gap-2 text-center">
-                    <div
-                      className={`p-1.5 rounded-xl flex flex-col items-center justify-center ${
-                        thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId
-                          ? 'bg-amber-500 text-coffee-950 font-black shadow-md'
-                          : 'bg-black/50 text-white'
-                      }`}
-                    >
-                      <span className="text-[9px] font-bold text-red-400 uppercase">
-                        {semiLeftId && tournament.matches[semiLeftId]
-                          ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiLeftId]).toUpperCase()}`
-                          : 'KALAH SEMIFINAL 1'}
-                      </span>
-                      <span className="text-xs font-black truncate max-w-full">
-                        {thirdPlaceMatch.participantA?.name ||
-                          (semiLeftId && tournament.matches[semiLeftId]
-                            ? `Kalah ${getMatchDisplayLabel(tournament.matches[semiLeftId])}`
-                            : 'Kalah Semifinal 1')}
-                      </span>
-                      {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId && (
-                        <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
+                return (
+                  <div
+                    onClick={() => {
+                      if (!tpPlayable) {
+                        showAlert.warning(
+                          'Perebutan Juara 3 Belum Siap',
+                          'Peserta Semifinal 1 dan Semifinal 2 belum selesai bertanding. Silakan tentukan pemenang Semifinal terlebih dahulu.'
+                        );
+                        return;
+                      }
+                      setSelectedMatch(thirdPlaceMatch);
+                    }}
+                    className={`rounded-2xl border-2 p-3 transition shadow-lg ${
+                      tpPlayable ? 'cursor-pointer hover:scale-[1.01]' : 'cursor-not-allowed opacity-60'
+                    } ${
+                      thirdPlaceMatch.status === 'completed'
+                        ? 'bg-gradient-to-r from-[#24150d] to-[#180e08] border-amber-500/90 shadow-[0_0_20px_rgba(217,119,6,0.4)]'
+                        : tpPlayable
+                        ? 'bg-gradient-to-r from-[#201309] to-[#160c06] border-amber-600/80 hover:border-amber-400'
+                        : 'bg-[#150d08] border-coffee-900 text-coffee-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-amber-600/30">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-300">
+                        <Medal className="w-3.5 h-3.5 text-amber-400" />
+                        <span>PEREBUTAN JUARA 3 (BRONZE MATCH)</span>
+                      </div>
+                      {thirdPlaceMatch.status === 'completed' ? (
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
+                      ) : tpPlayable ? (
+                        <span className="text-[10px] font-bold text-amber-400">KLIK UNTUK TANDING</span>
+                      ) : (
+                        <span className="text-[10px] text-coffee-500">BELUM SIAP</span>
                       )}
                     </div>
 
-                    <div
-                      className={`p-1.5 rounded-xl flex flex-col items-center justify-center ${
-                        thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId
-                          ? 'bg-amber-500 text-coffee-950 font-black shadow-md'
-                          : 'bg-black/50 text-white'
-                      }`}
-                    >
-                      <span className="text-[9px] font-bold text-blue-400 uppercase">
-                        {semiRightId && tournament.matches[semiRightId]
-                          ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiRightId]).toUpperCase()}`
-                          : 'KALAH SEMIFINAL 2'}
-                      </span>
-                      <span className="text-xs font-black truncate max-w-full">
-                        {thirdPlaceMatch.participantB?.name ||
-                          (semiRightId && tournament.matches[semiRightId]
-                            ? `Kalah ${getMatchDisplayLabel(tournament.matches[semiRightId])}`
-                            : 'Kalah Semifinal 2')}
-                      </span>
-                      {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId && (
-                        <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
-                      )}
+                    <div className="grid grid-cols-2 gap-2 text-center">
+                      <div
+                        className={`p-1.5 rounded-xl flex flex-col items-center justify-center ${
+                          thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId
+                            ? 'bg-amber-500 text-coffee-950 font-black shadow-md'
+                            : 'bg-black/50 text-white'
+                        }`}
+                      >
+                        <span className="text-[9px] font-bold text-red-400 uppercase">
+                          {semiLeftId && tournament.matches[semiLeftId]
+                            ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiLeftId]).toUpperCase()}`
+                            : 'KALAH SEMIFINAL 1'}
+                        </span>
+                        <span className="text-xs font-black truncate max-w-full">
+                          {thirdPlaceMatch.participantA?.name ||
+                            (semiLeftId && tournament.matches[semiLeftId]
+                              ? `Kalah ${getMatchDisplayLabel(tournament.matches[semiLeftId])}`
+                              : 'Kalah Semifinal 1')}
+                        </span>
+                        {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId && (
+                          <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
+                        )}
+                      </div>
+
+                      <div
+                        className={`p-1.5 rounded-xl flex flex-col items-center justify-center ${
+                          thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId
+                            ? 'bg-amber-500 text-coffee-950 font-black shadow-md'
+                            : 'bg-black/50 text-white'
+                        }`}
+                      >
+                        <span className="text-[9px] font-bold text-blue-400 uppercase">
+                          {semiRightId && tournament.matches[semiRightId]
+                            ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiRightId]).toUpperCase()}`
+                            : 'KALAH SEMIFINAL 2'}
+                        </span>
+                        <span className="text-xs font-black truncate max-w-full">
+                          {thirdPlaceMatch.participantB?.name ||
+                            (semiRightId && tournament.matches[semiRightId]
+                              ? `Kalah ${getMatchDisplayLabel(tournament.matches[semiRightId])}`
+                              : 'Kalah Semifinal 2')}
+                        </span>
+                        {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId && (
+                          <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Center Stage Footer Info */}
