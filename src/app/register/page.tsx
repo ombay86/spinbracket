@@ -84,7 +84,7 @@ export default function RegisterPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Panitia KKB Banten"
+              placeholder="Contoh: Panitia Turnamen"
               className="w-full bg-coffee-950 border border-coffee-700 focus:border-gold-400 rounded-xl px-4 py-3 text-white placeholder-coffee-500 focus:outline-none focus:ring-1 focus:ring-gold-400 transition"
             />
           </div>

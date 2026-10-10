@@ -319,7 +319,7 @@ export default function ParticipantSetupPage() {
               onClick={handleLoad28Preset}
               className="text-xs bg-gold-500/10 hover:bg-gold-500/20 text-gold-300 border border-gold-500/30 px-4 py-2 rounded-xl font-bold transition"
             >
-              + Isi Otomatis 28 Peserta (Preset KKB)
+              + Isi Otomatis 28 Peserta
             </button>
             <button
               onClick={handleLoad16Preset}

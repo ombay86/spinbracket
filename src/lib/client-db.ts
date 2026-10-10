@@ -122,8 +122,17 @@ const sampleBrewers = [
   { name: 'Zahra Amalia', affiliation: 'Work Coffee - Jakarta' },
 ];
 
-function buildDefaultSampleTournament(): Tournament {
-  const participants: Participant[] = sampleBrewers.map((b, idx) => ({
+function buildDefaultSampleTournament(count: number = 28): Tournament {
+  const chosenBrewers = sampleBrewers.slice(0, count);
+  while (chosenBrewers.length < count) {
+    const nextIdx = chosenBrewers.length + 1;
+    chosenBrewers.push({
+      name: `Peserta ${nextIdx}`,
+      affiliation: 'Club Peserta',
+    });
+  }
+
+  const participants: Participant[] = chosenBrewers.map((b, idx) => ({
     id: `p_${idx + 1}`,
     name: b.name,
     affiliation: b.affiliation,
@@ -131,7 +140,11 @@ function buildDefaultSampleTournament(): Tournament {
     seed: idx + 1,
   }));
 
-  const generated = createCoffee28Bracket(participants);
+  const generated =
+    count === 28
+      ? createCoffee28Bracket(participants)
+      : createDynamicBracket(participants, { formatType: 'throwdown' });
+
   const round0MatchIds = generated.rounds[0]?.matchIds || [];
 
   for (let i = 0; i < round0MatchIds.length; i++) {
@@ -139,31 +152,35 @@ function buildDefaultSampleTournament(): Tournament {
     const pA = participants[i * 2];
     const pB = participants[i * 2 + 1];
 
-    if (generated.matches[matchId] && pA && pB) {
+    if (generated.matches[matchId] && pA) {
       generated.matches[matchId].participantA = {
         participantId: pA.id,
         name: pA.name,
         affiliation: pA.affiliation,
         photo: pA.photo,
       };
-      generated.matches[matchId].participantB = {
-        participantId: pB.id,
-        name: pB.name,
-        affiliation: pB.affiliation,
-        photo: pB.photo,
-      };
-      generated.matches[matchId].status = 'ready';
+      if (pB) {
+        generated.matches[matchId].participantB = {
+          participantId: pB.id,
+          name: pB.name,
+          affiliation: pB.affiliation,
+          photo: pB.photo,
+        };
+        generated.matches[matchId].status = 'ready';
+      } else {
+        generated.matches[matchId].status = 'pending';
+      }
     }
   }
 
   return {
-    id: 'trn_sample_28',
+    id: `trn_sample_${count}_${Date.now()}`,
     userId: 'user_admin',
-    title: 'Tournament Throwdown 2026',
+    title: `Tournament Throwdown (${count} Peserta)`,
     subtitle: 'Bagan Knockdown Battle TV Display',
     location: 'Main Stage Arena',
     date: '10 - 11 Oktober 2026',
-    format: 'coffee-28',
+    format: count === 28 ? 'coffee-28' : 'knockout-standard',
     status: 'in_progress',
     participants,
     unassignedParticipantIds: [],
@@ -457,10 +474,10 @@ export const clientDb = {
     return this.getTournaments();
   },
 
-  seedSampleTournament(): Tournament {
+  seedSampleTournament(count: number = 28): Tournament {
     const db = loadDb();
-    const sample = buildDefaultSampleTournament();
-    sample.id = `trn_sample_${Date.now()}`;
+    const sample = buildDefaultSampleTournament(count);
+    sample.id = `trn_sample_${count}_${Date.now()}`;
     db.tournaments.unshift(sample);
     saveDb(db);
     syncTournamentToBackend(sample);

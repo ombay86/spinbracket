@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [sampleCount, setSampleCount] = useState<number>(28);
 
   // New Tournament Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -77,10 +78,11 @@ export default function DashboardPage() {
     return () => window.removeEventListener('spinbracket_data_synced', handleSynced);
   }, []);
 
-  const handleSeedSample = () => {
+  const handleSeedSample = (count?: number) => {
+    const targetCount = count ?? sampleCount;
     setSeeding(true);
     try {
-      clientDb.seedSampleTournament();
+      clientDb.seedSampleTournament(targetCount);
       fetchData();
     } catch (err) {
       console.error(err);
@@ -240,14 +242,33 @@ export default function DashboardPage() {
                 Buat Turnamen Baru
               </button>
 
-              <button
-                onClick={handleSeedSample}
-                disabled={seeding}
-                className="flex items-center gap-2 px-6 py-3.5 rounded-xl bg-coffee-800/90 hover:bg-coffee-700/90 text-gold-300 border border-gold-500/40 font-bold text-sm shadow transition"
-              >
-                <Coffee className="w-5 h-5 text-gold-400" />
-                {seeding ? 'Memuat Contoh...' : 'Muat Contoh KKB 2026 (28 Peserta)'}
-              </button>
+              <div className="flex items-center rounded-xl bg-coffee-800/90 border border-gold-500/40 p-1 shadow">
+                <button
+                  onClick={() => handleSeedSample()}
+                  disabled={seeding}
+                  className="flex items-center gap-2 px-4 py-2.5 text-gold-300 hover:text-gold-200 font-bold text-sm transition"
+                >
+                  <Coffee className="w-5 h-5 text-gold-400" />
+                  {seeding ? 'Memuat Contoh...' : `Muat Contoh (${sampleCount} Peserta)`}
+                </button>
+                <div className="flex items-center gap-1 border-l border-coffee-700/80 pl-2 pr-1">
+                  <button
+                    onClick={() => setSampleCount((c) => Math.max(4, c - 4))}
+                    className="w-7 h-7 rounded-lg bg-coffee-900/80 hover:bg-coffee-700 text-gold-300 hover:text-white flex items-center justify-center text-xs font-bold transition active:scale-95"
+                    title="Kurangi jumlah peserta"
+                  >
+                    -
+                  </button>
+                  <span className="text-xs font-mono font-bold text-white min-w-[24px] text-center">{sampleCount}</span>
+                  <button
+                    onClick={() => setSampleCount((c) => Math.min(32, c + 4))}
+                    className="w-7 h-7 rounded-lg bg-coffee-900/80 hover:bg-coffee-700 text-gold-300 hover:text-white flex items-center justify-center text-xs font-bold transition active:scale-95"
+                    title="Tambah jumlah peserta"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -306,14 +327,33 @@ export default function DashboardPage() {
                 Mulai Turnamen Baru
               </button>
 
-              <button
-                onClick={handleSeedSample}
-                disabled={seeding}
-                className="flex items-center gap-2 px-5 py-3.5 rounded-xl bg-coffee-800 hover:bg-coffee-700 text-coffee-200 border border-coffee-700 font-bold text-sm shadow transition"
-              >
-                <Coffee className="w-4 h-4 text-gold-400" />
-                {seeding ? 'Memuat Preset...' : 'Muat Contoh KKB 2026 (28 Peserta)'}
-              </button>
+              <div className="flex items-center rounded-xl bg-coffee-800 hover:bg-coffee-750 border border-coffee-700 p-1 shadow">
+                <button
+                  onClick={() => handleSeedSample()}
+                  disabled={seeding}
+                  className="flex items-center gap-2 px-4 py-2.5 text-coffee-200 hover:text-white font-bold text-sm transition"
+                >
+                  <Coffee className="w-4 h-4 text-gold-400" />
+                  {seeding ? 'Memuat Preset...' : `Muat Contoh (${sampleCount} Peserta)`}
+                </button>
+                <div className="flex items-center gap-1 border-l border-coffee-700/80 pl-2 pr-1">
+                  <button
+                    onClick={() => setSampleCount((c) => Math.max(4, c - 4))}
+                    className="w-7 h-7 rounded-lg bg-coffee-900/80 hover:bg-coffee-700 text-coffee-300 hover:text-white flex items-center justify-center text-xs font-bold transition active:scale-95"
+                    title="Kurangi jumlah peserta"
+                  >
+                    -
+                  </button>
+                  <span className="text-xs font-mono font-bold text-gold-400 min-w-[24px] text-center">{sampleCount}</span>
+                  <button
+                    onClick={() => setSampleCount((c) => Math.min(32, c + 4))}
+                    className="w-7 h-7 rounded-lg bg-coffee-900/80 hover:bg-coffee-700 text-coffee-300 hover:text-white flex items-center justify-center text-xs font-bold transition active:scale-95"
+                    title="Tambah jumlah peserta"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
@@ -440,7 +480,7 @@ export default function DashboardPage() {
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Contoh: KKB 2026 MANUAL BREWING THROWDOWN"
+                  placeholder="Contoh: TOURNAMENT THROWDOWN COMPETITION"
                   className="w-full bg-coffee-950 border border-coffee-700 focus:border-gold-400 rounded-xl px-4 py-3 text-white placeholder-coffee-500 focus:outline-none"
                 />
               </div>

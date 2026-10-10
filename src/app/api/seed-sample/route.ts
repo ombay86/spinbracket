@@ -40,7 +40,7 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const tournamentId = `trn_kkb2026_${Date.now()}`;
+  const tournamentId = `trn_sample_${Date.now()}`;
   const participants: Participant[] = sampleBrewers.map((b, idx) => ({
     id: `p_${idx + 1}`,
     name: b.name,
@@ -75,9 +75,9 @@ export async function POST() {
   const tournament: Tournament = {
     id: tournamentId,
     userId: user.id,
-    title: 'KKB 2026 MANUAL BREWING THROWDOWN COMPETITION',
+    title: 'TOURNAMENT THROWDOWN COMPETITION',
     subtitle: 'TOURNAMENT BRACKET 28 PESERTA → 3 JUARA',
-    location: 'Bank Indonesia Banten',
+    location: 'Main Stage Arena',
     date: '10 - 11 Oktober 2026',
     format: 'coffee-28',
     status: 'in_progress',
