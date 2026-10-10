@@ -125,10 +125,10 @@ export default function LoginPage() {
             <Trophy className="w-8 h-8 text-gold-400" />
           </div>
           <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-gold-300 to-amber-400 tracking-tight">
-            SPINBRACKET
+            TOURNAMENT THROWDOWN
           </h1>
           <p className="text-xs text-coffee-300 mt-1 uppercase tracking-widest font-semibold">
-            Sistem Bagan Knockdown & TV Display Interaktif
+            Interactive Knockdown Arena • OMBAY
           </p>
         </div>
 

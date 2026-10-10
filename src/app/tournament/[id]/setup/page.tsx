@@ -77,6 +77,24 @@ export default function ParticipantSetupPage() {
 
   useEffect(() => {
     fetchTournament();
+
+    clientDb.fetchTournamentByIdAsync(tournamentId).then((fresh) => {
+      if (fresh) {
+        setTournament(fresh);
+        setParticipants(fresh.participants || []);
+      }
+    });
+
+    const handleSynced = () => {
+      const fresh = clientDb.getTournamentById(tournamentId);
+      if (fresh) {
+        setTournament(fresh);
+        setParticipants(fresh.participants || []);
+      }
+    };
+
+    window.addEventListener('spinbracket_data_synced', handleSynced);
+    return () => window.removeEventListener('spinbracket_data_synced', handleSynced);
   }, [tournamentId]);
 
   // Handle Photo upload

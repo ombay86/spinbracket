@@ -161,6 +161,19 @@ export default function TvBracketPage() {
 
   useEffect(() => {
     fetchTournament();
+
+    // Async fetch fresh from Jurnal Ombay master database
+    clientDb.fetchTournamentByIdAsync(tournamentId).then((fresh) => {
+      if (fresh) setTournament(fresh);
+    });
+
+    const handleSynced = () => {
+      const fresh = clientDb.getTournamentById(tournamentId);
+      if (fresh) setTournament(fresh);
+    };
+
+    window.addEventListener('spinbracket_data_synced', handleSynced);
+    return () => window.removeEventListener('spinbracket_data_synced', handleSynced);
   }, [tournamentId]);
 
   // Fullscreen toggle

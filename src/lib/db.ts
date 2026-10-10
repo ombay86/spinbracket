@@ -471,6 +471,17 @@ export async function saveTournament(tournament: Tournament): Promise<Tournament
   }
 
   writeFileDb(db);
+
+  // Sync to Jurnal Ombay master database
+  const jurnalApi = process.env.JURNALOMBAY_API_URL || 'http://localhost:4000/api/tournaments';
+  try {
+    fetch(`${jurnalApi}/${tournament.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tournament),
+    }).catch(() => {});
+  } catch (e) {}
+
   return tournament;
 }
 
@@ -491,6 +502,10 @@ export async function deleteTournament(id: string, userId: string): Promise<bool
   db.tournaments = db.tournaments.filter((t) => !(t.id === id && t.userId === userId));
   if (db.tournaments.length !== initialLength) {
     writeFileDb(db);
+    const jurnalApi = process.env.JURNALOMBAY_API_URL || 'http://localhost:4000/api/tournaments';
+    try {
+      fetch(`${jurnalApi}/${id}`, { method: 'DELETE' }).catch(() => {});
+    } catch (e) {}
     return true;
   }
   return false;

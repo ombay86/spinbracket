@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "SpinBracket - Interactive Knockdown Tournament Platform",
-  description: "Dynamic knockdown tournament bracket display with interactive spinwheel draw and TV broadcast mode.",
+  title: "Tournament Throwdown - Interactive Knockdown Arena • OMBAY",
+  description: "Dynamic live battle knockdown tournament bracket display with interactive spinwheel draw and TV broadcast mode.",
 };
 
 export default function RootLayout({

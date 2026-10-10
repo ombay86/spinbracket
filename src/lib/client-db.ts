@@ -6,6 +6,91 @@ export type { User, Tournament, Participant, Match, Round, GrandFinalist };
 const STORAGE_KEY = 'spinbracket_local_db_v1';
 const SESSION_KEY = 'spinbracket_local_session_user';
 
+export const JURNALOMBAY_API =
+  typeof window !== 'undefined'
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:4000/api/tournaments'
+        : '/api/tournaments')
+    : (process.env.JURNALOMBAY_API_URL || 'http://localhost:4000/api/tournaments');
+
+// Background sync functions with Jurnal Ombay master database
+async function syncTournamentToBackend(tournament: Tournament) {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch(`${JURNALOMBAY_API}/${tournament.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(tournament),
+    });
+  } catch (err) {
+    console.warn('Backend sync notice (offline mode active):', err);
+  }
+}
+
+async function syncTournamentDeleteToBackend(id: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch(`${JURNALOMBAY_API}/${id}`, {
+      method: 'DELETE',
+    });
+  } catch (err) {
+    console.warn('Backend delete notice:', err);
+  }
+}
+
+let hasInitialSynced = false;
+async function initialSyncWithBackend() {
+  if (typeof window === 'undefined' || hasInitialSynced) return;
+  hasInitialSynced = true;
+  try {
+    const res = await fetch(JURNALOMBAY_API, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (json.success && Array.isArray(json.tournaments)) {
+      const db = loadDb();
+      let hasChanges = false;
+      const backendTournaments: Tournament[] = json.tournaments;
+
+      // 1. Merge backend tournaments into local
+      backendTournaments.forEach((bTour) => {
+        const localIdx = db.tournaments.findIndex((t) => t.id === bTour.id);
+        if (localIdx === -1) {
+          db.tournaments.push(bTour);
+          hasChanges = true;
+        } else {
+          const bTime = new Date(bTour.updatedAt || 0).getTime();
+          const lTime = new Date(db.tournaments[localIdx].updatedAt || 0).getTime();
+          if (bTime > lTime) {
+            db.tournaments[localIdx] = bTour;
+            hasChanges = true;
+          }
+        }
+      });
+
+      // 2. Push any local tournaments that backend doesn't have yet up to backend
+      for (const lTour of db.tournaments) {
+        if (!backendTournaments.some((b) => b.id === lTour.id)) {
+          syncTournamentToBackend(lTour);
+        }
+      }
+
+      if (hasChanges) {
+        saveDb(db);
+        window.dispatchEvent(new CustomEvent('spinbracket_data_synced'));
+      }
+    }
+  } catch (err) {
+    console.warn('Initial backend sync notice (offline):', err);
+  }
+}
+
+// Auto-trigger sync on load in browser
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    initialSyncWithBackend();
+  }, 100);
+}
+
 const sampleBrewers = [
   { name: 'Dimas Aditya', affiliation: 'Anomali Coffee - Jakarta' },
   { name: 'Siti Rahma', affiliation: 'Smoking Barrels - Bandung' },
@@ -74,8 +159,8 @@ function buildDefaultSampleTournament(): Tournament {
   return {
     id: 'trn_sample_28',
     userId: 'user_admin',
-    title: 'Manual Brewing Throwdown 2026',
-    subtitle: 'Bagan Knockdown 28 Peserta TV Display',
+    title: 'Tournament Throwdown 2026',
+    subtitle: 'Bagan Knockdown Battle TV Display',
     location: 'Main Stage Arena',
     date: '10 - 11 Oktober 2026',
     format: 'coffee-28',
@@ -311,6 +396,10 @@ export const clientDb = {
       db.tournaments.push(tournament);
     }
     saveDb(db);
+
+    // Persist to Jurnal Ombay master database in background
+    syncTournamentToBackend(tournament);
+
     return tournament;
   },
 
@@ -320,9 +409,52 @@ export const clientDb = {
     db.tournaments = db.tournaments.filter((t) => t.id !== id);
     if (db.tournaments.length !== lenBefore) {
       saveDb(db);
+      // Delete from Jurnal Ombay master database
+      syncTournamentDeleteToBackend(id);
       return true;
     }
     return false;
+  },
+
+  async fetchTournamentByIdAsync(id: string): Promise<Tournament | null> {
+    try {
+      const res = await fetch(`${JURNALOMBAY_API}/${id}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.tournament) {
+          const db = loadDb();
+          const idx = db.tournaments.findIndex((t) => t.id === id);
+          if (idx >= 0) {
+            db.tournaments[idx] = json.tournament;
+          } else {
+            db.tournaments.push(json.tournament);
+          }
+          saveDb(db);
+          return json.tournament;
+        }
+      }
+    } catch (e) {
+      // offline fallback
+    }
+    return this.getTournamentById(id);
+  },
+
+  async syncFromBackend(): Promise<Tournament[]> {
+    try {
+      const res = await fetch(JURNALOMBAY_API);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.tournaments)) {
+          const db = loadDb();
+          db.tournaments = json.tournaments;
+          saveDb(db);
+          return db.tournaments;
+        }
+      }
+    } catch (e) {
+      // offline fallback
+    }
+    return this.getTournaments();
   },
 
   seedSampleTournament(): Tournament {
@@ -331,6 +463,7 @@ export const clientDb = {
     sample.id = `trn_sample_${Date.now()}`;
     db.tournaments.unshift(sample);
     saveDb(db);
+    syncTournamentToBackend(sample);
     return sample;
   },
 

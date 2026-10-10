@@ -61,6 +61,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Async sync from Jurnal Ombay master database
+    clientDb.syncFromBackend().then((list) => {
+      if (list && list.length) {
+        setTournaments(list);
+      }
+    });
+
+    const handleSynced = () => {
+      setTournaments(clientDb.getTournaments());
+    };
+
+    window.addEventListener('spinbracket_data_synced', handleSynced);
+    return () => window.removeEventListener('spinbracket_data_synced', handleSynced);
   }, []);
 
   const handleSeedSample = () => {
@@ -176,13 +190,13 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gold-500/20 border border-gold-500/50">
-              <Coffee className="w-6 h-6 text-gold-400" />
+              <Trophy className="w-6 h-6 text-gold-400" />
             </div>
             <div>
               <div className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-gold-400">
-                SPINBRACKET ARENA
+                TOURNAMENT THROWDOWN
               </div>
-              <div className="text-xs text-coffee-300">Sistem Bagan TV & Undian Spinwheel Interaktif</div>
+              <div className="text-xs text-coffee-300">Sistem Bagan TV & Undian Spinwheel Interaktif • OMBAY</div>
             </div>
           </div>
 
