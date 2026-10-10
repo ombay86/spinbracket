@@ -274,7 +274,11 @@ export const clientDb = {
 
     // Auto-heal / sync bracket if participant count doesn't match round 1 capacity or needs Grand Final
     const pCount = t.participants?.length || 0;
-    if (pCount > 0) {
+    const hasAnyCompletedMatch = Object.values(t.matches || {}).some(
+      (m) => m.status === 'completed' && !m.participantB?.isBye
+    );
+
+    if (pCount > 0 && !hasAnyCompletedMatch) {
       const round0MatchIds = (t.rounds?.[0]?.matchIds || []).filter((m) => !m.includes('bye'));
       const capacity = round0MatchIds.length * 2;
       const lastRound = t.rounds?.[t.rounds.length - 1];
