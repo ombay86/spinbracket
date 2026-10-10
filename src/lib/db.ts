@@ -117,6 +117,7 @@ function getPgPool(): Pool | null {
       connectionString,
       ssl: isSslDisabled ? false : { rejectUnauthorized: false },
       max: 10,
+      connectionTimeoutMillis: 4000,
       idleTimeoutMillis: 30000,
     });
   }
@@ -353,25 +354,32 @@ export async function getUserById(id: string): Promise<User | undefined> {
 export async function createUser(username: string, password: string, name: string): Promise<User> {
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    const existing = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1', [username]);
-    if (existing.rows.length > 0) {
-      throw new Error('Username sudah terdaftar');
+    try {
+      await ensurePgSchema(pool);
+      const existing = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1', [username]);
+      if (existing.rows.length > 0) {
+        throw new Error('Username sudah terdaftar');
+      }
+
+      const newUser: User = {
+        id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        username,
+        passwordHash: password,
+        name,
+        createdAt: new Date().toISOString(),
+      };
+
+      await pool.query(
+        'INSERT INTO users (id, username, password_hash, name, created_at) VALUES ($1, $2, $3, $4, $5)',
+        [newUser.id, newUser.username, newUser.passwordHash, newUser.name, newUser.createdAt]
+      );
+      return newUser;
+    } catch (err: any) {
+      if (err.message === 'Username sudah terdaftar') {
+        throw err;
+      }
+      console.warn('PostgreSQL failed in createUser, falling back to file/memory DB:', err.message);
     }
-
-    const newUser: User = {
-      id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      username,
-      passwordHash: password,
-      name,
-      createdAt: new Date().toISOString(),
-    };
-
-    await pool.query(
-      'INSERT INTO users (id, username, password_hash, name, created_at) VALUES ($1, $2, $3, $4, $5)',
-      [newUser.id, newUser.username, newUser.passwordHash, newUser.name, newUser.createdAt]
-    );
-    return newUser;
   }
 
   const db = ensureFileDb();
@@ -396,12 +404,16 @@ export async function createUser(username: string, password: string, name: strin
 export async function getTournamentsByUser(userId: string): Promise<Tournament[]> {
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    const res = await pool.query(
-      'SELECT data FROM tournaments WHERE user_id = $1 ORDER BY updated_at DESC',
-      [userId]
-    );
-    return res.rows.map((r) => r.data as Tournament);
+    try {
+      await ensurePgSchema(pool);
+      const res = await pool.query(
+        'SELECT data FROM tournaments WHERE user_id = $1 ORDER BY updated_at DESC',
+        [userId]
+      );
+      return res.rows.map((r) => r.data as Tournament);
+    } catch (err) {
+      console.warn('PostgreSQL failed in getTournamentsByUser, falling back to file/memory DB:', err);
+    }
   }
 
   const db = ensureFileDb();
@@ -413,10 +425,15 @@ export async function getTournamentsByUser(userId: string): Promise<Tournament[]
 export async function getTournamentById(id: string): Promise<Tournament | undefined> {
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    const res = await pool.query('SELECT data FROM tournaments WHERE id = $1 LIMIT 1', [id]);
-    if (res.rows.length === 0) return undefined;
-    return res.rows[0].data as Tournament;
+    try {
+      await ensurePgSchema(pool);
+      const res = await pool.query('SELECT data FROM tournaments WHERE id = $1 LIMIT 1', [id]);
+      if (res.rows.length > 0) {
+        return res.rows[0].data as Tournament;
+      }
+    } catch (err) {
+      console.warn('PostgreSQL failed in getTournamentById, falling back to file/memory DB:', err);
+    }
   }
 
   const db = ensureFileDb();
@@ -429,15 +446,19 @@ export async function saveTournament(tournament: Tournament): Promise<Tournament
 
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    await pool.query(
-      `INSERT INTO tournaments (id, user_id, data, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (id) DO UPDATE
-       SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
-      [tournament.id, tournament.userId, JSON.stringify(tournament), tournament.createdAt, tournament.updatedAt]
-    );
-    return tournament;
+    try {
+      await ensurePgSchema(pool);
+      await pool.query(
+        `INSERT INTO tournaments (id, user_id, data, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (id) DO UPDATE
+         SET data = EXCLUDED.data, updated_at = EXCLUDED.updated_at`,
+        [tournament.id, tournament.userId, JSON.stringify(tournament), tournament.createdAt, tournament.updatedAt]
+      );
+      return tournament;
+    } catch (err) {
+      console.warn('PostgreSQL failed in saveTournament, falling back to file/memory DB:', err);
+    }
   }
 
   const db = ensureFileDb();
@@ -456,9 +477,13 @@ export async function saveTournament(tournament: Tournament): Promise<Tournament
 export async function deleteTournament(id: string, userId: string): Promise<boolean> {
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    const res = await pool.query('DELETE FROM tournaments WHERE id = $1 AND user_id = $2', [id, userId]);
-    return (res.rowCount ?? 0) > 0;
+    try {
+      await ensurePgSchema(pool);
+      const res = await pool.query('DELETE FROM tournaments WHERE id = $1 AND user_id = $2', [id, userId]);
+      return (res.rowCount ?? 0) > 0;
+    } catch (err) {
+      console.warn('PostgreSQL failed in deleteTournament, falling back to file/memory DB:', err);
+    }
   }
 
   const db = ensureFileDb();
@@ -496,58 +521,62 @@ export async function validateAndRegisterSession(
   const now = Date.now();
 
   if (pool) {
-    await ensurePgSchema(pool);
-    const res = await pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [userId]);
-    if (res.rows.length === 0) return { allowed: false, reason: 'INVALID_CREDENTIALS' };
-    const r = res.rows[0];
-    const user: User = {
-      id: r.id,
-      username: r.username,
-      passwordHash: r.password_hash,
-      name: r.name,
-      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-      activeSessionId: r.active_session_id || null,
-      activeDeviceId: r.active_device_id || null,
-      activeDeviceName: r.active_device_name || null,
-      lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
-      lastIp: r.last_ip || null,
-    };
-
-    const hasActiveSession =
-      !!user.activeSessionId &&
-      !!user.lastActiveAt &&
-      now - user.lastActiveAt < SESSION_INACTIVITY_TIMEOUT_MS;
-
-    const isSameDevice = user.activeDeviceId === deviceId;
-
-    if (hasActiveSession && !isSameDevice && !forceTakeover) {
-      return {
-        allowed: false,
-        reason: 'ACCOUNT_ALREADY_LOGGED_IN',
-        activeDevice: user.activeDeviceName || 'Perangkat Lain',
-        lastActiveAt: user.lastActiveAt || undefined,
+    try {
+      await ensurePgSchema(pool);
+      const res = await pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [userId]);
+      if (res.rows.length === 0) return { allowed: false, reason: 'INVALID_CREDENTIALS' };
+      const r = res.rows[0];
+      const user: User = {
+        id: r.id,
+        username: r.username,
+        passwordHash: r.password_hash,
+        name: r.name,
+        createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+        activeSessionId: r.active_session_id || null,
+        activeDeviceId: r.active_device_id || null,
+        activeDeviceName: r.active_device_name || null,
+        lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
+        lastIp: r.last_ip || null,
       };
+
+      const hasActiveSession =
+        !!user.activeSessionId &&
+        !!user.lastActiveAt &&
+        now - user.lastActiveAt < SESSION_INACTIVITY_TIMEOUT_MS;
+
+      const isSameDevice = user.activeDeviceId === deviceId;
+
+      if (hasActiveSession && !isSameDevice && !forceTakeover) {
+        return {
+          allowed: false,
+          reason: 'ACCOUNT_ALREADY_LOGGED_IN',
+          activeDevice: user.activeDeviceName || 'Perangkat Lain',
+          lastActiveAt: user.lastActiveAt || undefined,
+        };
+      }
+
+      const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      await pool.query(
+        `UPDATE users SET 
+          active_session_id = $1, 
+          active_device_id = $2, 
+          active_device_name = $3, 
+          last_active_at = $4, 
+          last_ip = $5 
+         WHERE id = $6`,
+        [sessionId, deviceId, deviceName, now, ip || null, userId]
+      );
+
+      user.activeSessionId = sessionId;
+      user.activeDeviceId = deviceId;
+      user.activeDeviceName = deviceName;
+      user.lastActiveAt = now;
+      user.lastIp = ip || null;
+
+      return { allowed: true, sessionId, user };
+    } catch (err) {
+      console.warn('PostgreSQL failed in validateAndRegisterSession, falling back to file/memory DB:', err);
     }
-
-    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    await pool.query(
-      `UPDATE users SET 
-        active_session_id = $1, 
-        active_device_id = $2, 
-        active_device_name = $3, 
-        last_active_at = $4, 
-        last_ip = $5 
-       WHERE id = $6`,
-      [sessionId, deviceId, deviceName, now, ip || null, userId]
-    );
-
-    user.activeSessionId = sessionId;
-    user.activeDeviceId = deviceId;
-    user.activeDeviceName = deviceName;
-    user.lastActiveAt = now;
-    user.lastIp = ip || null;
-
-    return { allowed: true, sessionId, user };
   }
 
   // File DB fallback
@@ -591,20 +620,24 @@ export async function heartbeatUserSession(
   const now = Date.now();
 
   if (pool) {
-    await ensurePgSchema(pool);
-    const res = await pool.query('SELECT active_session_id FROM users WHERE id = $1 LIMIT 1', [userId]);
-    if (res.rows.length === 0) return { valid: false, reason: 'USER_NOT_FOUND' };
-    const activeSess = res.rows[0].active_session_id;
+    try {
+      await ensurePgSchema(pool);
+      const res = await pool.query('SELECT active_session_id FROM users WHERE id = $1 LIMIT 1', [userId]);
+      if (res.rows.length === 0) return { valid: false, reason: 'USER_NOT_FOUND' };
+      const activeSess = res.rows[0].active_session_id;
 
-    if (!activeSess || activeSess !== sessionId) {
-      return { valid: false, reason: 'SESSION_TAKEN_OVER' };
+      if (!activeSess || activeSess !== sessionId) {
+        return { valid: false, reason: 'SESSION_TAKEN_OVER' };
+      }
+
+      await pool.query(
+        'UPDATE users SET last_active_at = $1, last_ip = COALESCE($2, last_ip) WHERE id = $3',
+        [now, ip || null, userId]
+      );
+      return { valid: true };
+    } catch (err) {
+      console.warn('PostgreSQL failed in heartbeatUserSession, falling back to file/memory DB:', err);
     }
-
-    await pool.query(
-      'UPDATE users SET last_active_at = $1, last_ip = COALESCE($2, last_ip) WHERE id = $3',
-      [now, ip || null, userId]
-    );
-    return { valid: true };
   }
 
   const db = ensureFileDb();
@@ -624,19 +657,23 @@ export async function heartbeatUserSession(
 export async function clearUserActiveSession(userId: string, sessionId?: string): Promise<void> {
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    if (sessionId) {
-      await pool.query(
-        'UPDATE users SET active_session_id = NULL, last_active_at = NULL WHERE id = $1 AND active_session_id = $2',
-        [userId, sessionId]
-      );
-    } else {
-      await pool.query(
-        'UPDATE users SET active_session_id = NULL, last_active_at = NULL WHERE id = $1',
-        [userId]
-      );
+    try {
+      await ensurePgSchema(pool);
+      if (sessionId) {
+        await pool.query(
+          'UPDATE users SET active_session_id = NULL, last_active_at = NULL WHERE id = $1 AND active_session_id = $2',
+          [userId, sessionId]
+        );
+      } else {
+        await pool.query(
+          'UPDATE users SET active_session_id = NULL, last_active_at = NULL WHERE id = $1',
+          [userId]
+        );
+      }
+      return;
+    } catch (err) {
+      console.warn('PostgreSQL failed in clearUserActiveSession, falling back to file/memory DB:', err);
     }
-    return;
   }
 
   const db = ensureFileDb();

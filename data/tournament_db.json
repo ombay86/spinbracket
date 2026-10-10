@@ -11,6 +11,30 @@
       "activeDeviceName": "Laptop A",
       "lastActiveAt": null,
       "lastIp": "::1"
+    },
+    {
+      "id": "user_1791597808750_z3n1s",
+      "username": "panitia_test_mv1r2ske",
+      "passwordHash": "password123",
+      "name": "Panitia Test Banten",
+      "createdAt": "2026-10-10T02:03:28.750Z",
+      "activeSessionId": "sess_1791597808752_1r10ie2",
+      "activeDeviceId": "dev_test",
+      "activeDeviceName": "Chrome di Windows",
+      "lastActiveAt": 1791597808752,
+      "lastIp": "::1"
+    },
+    {
+      "id": "user_1791597815618_9h8lc",
+      "username": "panitia_unreachable_mv1r2xwe",
+      "passwordHash": "password123",
+      "name": "Panitia Unreachable",
+      "createdAt": "2026-10-10T02:03:35.618Z",
+      "activeSessionId": "sess_1791597815620_y10z7f6",
+      "activeDeviceId": "dev_test_2",
+      "activeDeviceName": "Chrome di Windows",
+      "lastActiveAt": 1791597815620,
+      "lastIp": "::1"
     }
   ],
   "tournaments": [
