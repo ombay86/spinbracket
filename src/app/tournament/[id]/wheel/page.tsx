@@ -253,7 +253,7 @@ export default function SpinWheelPage() {
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-black text-white">{tournament.title}</h1>
                 <span className="text-xs bg-gold-500/20 text-gold-300 border border-gold-500/40 px-3 py-0.5 rounded-full font-bold">
-                  Undian Live Spinwheel
+                  Spinwheel Player Shuffler
                 </span>
               </div>
               <p className="text-xs text-coffee-300">

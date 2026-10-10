@@ -759,7 +759,7 @@ export default function TvBracketPage() {
           <Link
             href={`/tournament/${tournamentId}/wheel`}
             className="p-2.5 rounded-xl bg-[#1e130c] hover:bg-[#2e1d13] border border-coffee-700 text-coffee-300 hover:text-white transition"
-            title="Spinwheel Undian"
+            title="Spinwheel Player Shuffler"
           >
             <Shuffle className="w-4 h-4" />
           </Link>
