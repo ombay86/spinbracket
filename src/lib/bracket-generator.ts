@@ -75,7 +75,7 @@ export function createDynamicBracket(
     const matchIds: string[] = [];
 
     let roundName = `BABAK ${r + 1}`;
-    let subTitle = `${hasBypass ? matchCount - 1 : matchCount} BATTLE${hasBypass ? ' + 1 BYPASS' : ''}`;
+    let subTitle = `${matchCount} BATTLE`;
 
     if (isFinalRound || r === totalRounds - 1) {
       roundName = 'BABAK FINAL';
@@ -132,10 +132,11 @@ export function createDynamicBracket(
         const id = isThisBypass ? `r${r}_bypass` : `r${r}_m${m + 1}`;
         matchIds.push(id);
 
+        const currentBattleNum = matchGlobalCounter++;
         matches[id] = {
           id,
-          matchNumber: isThisBypass ? 0 : matchGlobalCounter++,
-          label: isThisBypass ? '⚡ BYPASS (Lolos Langsung)' : `Battle ${matchGlobalCounter - 1}`,
+          matchNumber: currentBattleNum,
+          label: `Battle ${currentBattleNum}`,
           roundIndex: r,
           participantA: null,
           participantB: isThisBypass ? { name: 'BYPASS / BYE', isBye: true } : null,

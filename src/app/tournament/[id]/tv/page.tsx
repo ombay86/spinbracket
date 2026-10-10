@@ -462,6 +462,26 @@ export default function TvBracketPage() {
   const grandFinalMatch = roundFinal ? tournament.matches[roundFinal.matchIds[0]] : null;
   const thirdPlaceMatch = roundFinal && roundFinal.matchIds.length > 1 ? tournament.matches[roundFinal.matchIds[1]] : null;
 
+  // Helper to dynamically calculate consecutive Battle number for any match (including previously labelled bypass matches)
+  const getMatchDisplayLabel = (match: Match): string => {
+    if (!tournament) return match.label;
+    if (match.label && !match.label.toLowerCase().includes('bypass') && !match.label.toLowerCase().includes('bye')) {
+      return match.label;
+    }
+
+    // If label is "BYPASS", calculate its sequential battle position
+    let count = 0;
+    for (const r of tournament.rounds) {
+      for (const mId of r.matchIds) {
+        count++;
+        if (mId === match.id) {
+          return `Battle ${count}`;
+        }
+      }
+    }
+    return match.label;
+  };
+
   // Render a standard or prominent match card
   const renderMatchCard = (match: Match | undefined, variant: 'normal' | 'prominent' = 'normal') => {
     if (!match) return null;
@@ -469,6 +489,7 @@ export default function TvBracketPage() {
     const isCompleted = match.status === 'completed';
     const isBye = match.participantB?.isBye;
     const isProminent = variant === 'prominent';
+    const displayLabel = getMatchDisplayLabel(match);
 
     if (isBye) {
       return (
@@ -484,7 +505,7 @@ export default function TvBracketPage() {
           <div className="flex items-center justify-between text-gold-400 mb-1.5 text-xs font-black">
             <span className="truncate flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-              {match.label} (SLOT TANDING / BYPASS)
+              {displayLabel}
             </span>
             {isCompleted ? (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500 text-black font-black">LOLOS</span>
@@ -1002,7 +1023,7 @@ export default function TvBracketPage() {
                 <div className="text-center bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-coffee-950 uppercase tracking-wider shadow py-2 px-2 mb-2 rounded-xl">
                   <div className="truncate text-xs md:text-sm font-black">{round.name}</div>
                   <div className="truncate mt-0.5 text-[10px] md:text-[11px] font-bold text-coffee-950/80">
-                    {round.subTitle}
+                    {round.subTitle ? round.subTitle.replace(/\s*\+\s*1\s*BYPASS/gi, '') : `${matchCount} BATTLE`}
                   </div>
                 </div>
 
@@ -1106,11 +1127,11 @@ export default function TvBracketPage() {
             {/* Match Label & Stage Info */}
             <div className="relative z-10 mb-6">
               <h3 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-gold-300 to-amber-400 tracking-tight drop-shadow mb-1">
-                {selectedMatch.label}
+                {getMatchDisplayLabel(selectedMatch)}
               </h3>
               <p className="text-xs md:text-sm text-coffee-300 font-medium">
                 {selectedMatch.participantB?.isBye
-                  ? 'Peserta ini berhak langsung melaju ke babak berikutnya tanpa tanding:'
+                  ? 'Peserta ini berhak langsung melaju ke babak berikutnya, atau diadu lagi dengan peserta yang kalah sebelumnya:'
                   : 'Sesi tanding sedang berlangsung di panggung. Klik nama peserta untuk menentukan pemenang saat penilaian selesai.'}
               </p>
             </div>
