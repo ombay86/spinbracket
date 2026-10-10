@@ -11,8 +11,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username dan password wajib diisi' }, { status: 400 });
     }
 
-    const user = await getUserByUsername(username);
-    if (!user || user.passwordHash !== password) {
+    let user = await getUserByUsername(username);
+    let isAuthenticated = !!(user && user.passwordHash === password);
+
+    // Fallback: check Jurnal Ombay SSO login endpoint
+    if (!isAuthenticated) {
+      const jurnalHost =
+        process.env.NEXT_PUBLIC_JURNALOMBAY_HOST ||
+        (process.env.NODE_ENV === 'production' ? 'https://jurnalombay.my.id' : 'http://localhost:4000');
+      try {
+        const ssoLoginRes = await fetch(`${jurnalHost}/sso/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier: username, password }),
+        });
+
+        if (ssoLoginRes.ok) {
+          const ssoData = await ssoLoginRes.json();
+          if (ssoData.success && ssoData.user) {
+            if (!user) {
+              try {
+                const { createUser } = await import('@/lib/db');
+                user = await createUser(username, password, ssoData.user.fullName || username);
+              } catch {
+                user = await getUserByUsername(username);
+              }
+            }
+            isAuthenticated = true;
+          }
+        }
+      } catch (e) {
+        // offline fallback
+      }
+    }
+
+    if (!user || !isAuthenticated) {
       return NextResponse.json({ error: 'Username atau password salah' }, { status: 401 });
     }
 

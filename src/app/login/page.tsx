@@ -1,18 +1,71 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Trophy, Coffee, Lock, User, ArrowRight, ShieldAlert } from 'lucide-react';
+import { Trophy, Coffee, Lock, User, ArrowRight, ShieldAlert, Globe } from 'lucide-react';
 import { clientDb } from '@/lib/client-db';
 import { showAlert } from '@/lib/sweetalert';
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Handle incoming SSO token from Jurnal Ombay redirection
+  useEffect(() => {
+    const ssoToken = searchParams.get('sso_token') || searchParams.get('token');
+    if (!ssoToken) return;
+
+    const processSSOToken = async () => {
+      setSsoLoading(true);
+      try {
+        const deviceId = clientDb.getDeviceId();
+        const deviceName = clientDb.getDeviceName();
+
+        const res = await fetch('/api/auth/sso-verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: ssoToken, deviceId, deviceName }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Verifikasi SSO gagal');
+        }
+
+        if (data.sessionId) {
+          clientDb.setSessionId(data.sessionId);
+        }
+        clientDb.setCurrentUser(data.user);
+
+        showAlert.success('Berhasil Masuk via SSO!', `Selamat datang, ${data.user.name || data.user.username}!`, 2000);
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 800);
+      } catch (err: any) {
+        setError(err.message || 'Gagal login otomatis menggunakan SSO Jurnal Ombay.');
+        setSsoLoading(false);
+      }
+    };
+
+    processSSOToken();
+  }, [searchParams]);
+
+  const handleSSORedirect = () => {
+    const jurnalHost =
+      process.env.NEXT_PUBLIC_JURNALOMBAY_HOST ||
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:4000'
+        : 'https://jurnalombay.my.id');
+
+    const redirectUri = typeof window !== 'undefined' ? `${window.location.origin}/login` : '';
+    window.location.href = `${jurnalHost}/sso/authorize?app=tournament-throwdown&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,13 +228,34 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || ssoLoading}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-base shadow-[0_0_20px_rgba(234,179,8,0.4)] flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-50"
           >
             {loading ? 'Sedang Masuk...' : 'Masuk ke Aplikasi'}
             <ArrowRight className="w-5 h-5" />
           </button>
         </form>
+
+        {/* SSO Button Divider */}
+        <div className="relative my-6 text-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-coffee-800"></div>
+          </div>
+          <span className="relative bg-coffee-900 px-3 text-xs uppercase tracking-wider text-coffee-400 font-semibold">
+            atau SSO Terintegrasi
+          </span>
+        </div>
+
+        {/* Jurnal Ombay SSO Button */}
+        <button
+          type="button"
+          onClick={handleSSORedirect}
+          disabled={loading || ssoLoading}
+          className="w-full py-3 rounded-xl bg-coffee-800/80 hover:bg-coffee-850 border border-gold-500/50 hover:border-gold-400 text-gold-300 font-bold text-sm flex items-center justify-center gap-2.5 transition active:scale-95 shadow-lg group"
+        >
+          <Globe className="w-4 h-4 text-gold-400 group-hover:rotate-45 transition duration-300" />
+          {ssoLoading ? 'Memverifikasi SSO...' : 'Masuk dengan Jurnal Ombay SSO'}
+        </button>
 
         <div className="mt-6 pt-6 border-t border-coffee-800 text-center flex flex-col gap-2">
           <p className="text-xs text-coffee-400">
@@ -198,3 +272,18 @@ export default function LoginPage() {
     </div>
   );
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center text-gold-400 text-sm">
+          Memuat halaman login...
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
+  );
+}
+
