@@ -28,6 +28,7 @@ import {
   Edit3,
   X,
   Plus,
+  LayoutGrid,
 } from 'lucide-react';
 import { clientDb, Tournament, Match, Participant } from '@/lib/client-db';
 import { WinnerCelebrationModal } from '@/components/WinnerCelebrationModal';
@@ -45,6 +46,7 @@ export default function TvBracketPage() {
   const [loading, setLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFullView, setIsFullView] = useState(false);
+  const [viewPreference, setViewPreference] = useState<'auto' | 'bilateral' | 'linear'>('auto');
 
   // Selected match for adjudication modal
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -456,25 +458,34 @@ export default function TvBracketPage() {
     });
   };
 
-  // Round detection for Bilateral Wing Mode (Babak 3 & onwards)
-  const r3Index = tournament.rounds.findIndex(
-    (r) =>
-      r.name.toLowerCase().includes('babak 3') ||
-      r.name.toLowerCase().includes('perempat') ||
-      r.name.toLowerCase().includes('quarter')
-  );
+  // Dynamically detect Quarterfinal (Babak 4 Besar), Semifinal, and Final rounds
+  const totalRounds = tournament.rounds.length;
+  const qfRoundIndex = totalRounds >= 3 ? totalRounds - 3 : -1;
+  const semiRoundIndex = totalRounds >= 2 ? totalRounds - 2 : -1;
+  const finalRoundIndex = totalRounds >= 1 ? totalRounds - 1 : -1;
 
-  const hasEnteredBabak3 =
-    r3Index >= 0 &&
-    (isRoundCompleted(0) && isRoundCompleted(1) ||
-      isRoundCompleted(r3Index) ||
-      tournament.rounds.slice(r3Index).some((r) => r.matchIds.some((m) => !!tournament.matches[m]?.winnerId)));
+  // Have we entered the 4-besar / QF stage?
+  const hasEnteredQfStage =
+    qfRoundIndex >= 0 &&
+    (
+      // Either all prior rounds (before QF) are completed
+      (qfRoundIndex === 0 || Array.from({ length: qfRoundIndex }).every((_, idx) => isRoundCompleted(idx))) ||
+      // Or any match from QF onwards has a winner or is completed
+      tournament.rounds.slice(qfRoundIndex).some((r) =>
+        r.matchIds.some((m) => !!tournament.matches[m]?.winnerId || tournament.matches[m]?.status === 'completed')
+      )
+    );
 
-  const isBilateralView = !isFullView && hasEnteredBabak3 && tournament.rounds.length >= 4;
+  const isBilateralView =
+    viewPreference === 'bilateral'
+      ? true
+      : viewPreference === 'linear'
+      ? false
+      : hasEnteredQfStage && totalRounds >= 3;
 
-  // Linear visible rounds (for before Babak 3 or Full View mode)
+  // Linear visible rounds (for before QF or when in Linear Mode)
   const isQuarterFinalOrLater = (rIndex: number) => {
-    if (tournament.rounds.length >= 3 && rIndex >= tournament.rounds.length - 3) return true;
+    if (totalRounds >= 3 && rIndex >= totalRounds - 3) return true;
     return false;
   };
 
@@ -488,9 +499,9 @@ export default function TvBracketPage() {
   const hiddenCount = tournament.rounds.length - displayedRounds.length;
 
   // Rounds partition for Bilateral Wing View
-  const roundBabak3 = r3Index >= 0 ? tournament.rounds[r3Index] : null;
-  const roundSemi = r3Index >= 0 && r3Index + 1 < tournament.rounds.length ? tournament.rounds[r3Index + 1] : null;
-  const roundFinal = r3Index >= 0 && r3Index + 2 < tournament.rounds.length ? tournament.rounds[r3Index + 2] : null;
+  const roundBabak3 = qfRoundIndex >= 0 ? tournament.rounds[qfRoundIndex] : null;
+  const roundSemi = semiRoundIndex >= 0 ? tournament.rounds[semiRoundIndex] : null;
+  const roundFinal = finalRoundIndex >= 0 ? tournament.rounds[finalRoundIndex] : null;
 
   const b3MatchIds = roundBabak3?.matchIds || [];
   const b3LeftIds = b3MatchIds.slice(0, Math.ceil(b3MatchIds.length / 2));
@@ -499,7 +510,7 @@ export default function TvBracketPage() {
   const semiLeftId = roundSemi?.matchIds[0];
   const semiRightId = roundSemi?.matchIds[1];
 
-  const grandFinalMatch = roundFinal ? tournament.matches[roundFinal.matchIds[0]] : null;
+  const grandFinalMatch = roundFinal && roundFinal.matchIds.length > 0 ? tournament.matches[roundFinal.matchIds[0]] : null;
   const thirdPlaceMatch = roundFinal && roundFinal.matchIds.length > 1 ? tournament.matches[roundFinal.matchIds[1]] : null;
 
   // Helper to dynamically calculate consecutive Battle number for any match (including previously labelled bypass matches)
@@ -683,28 +694,44 @@ export default function TvBracketPage() {
 
         {/* Right Action & TV Controls */}
         <div className="flex items-center gap-2.5">
-          {/* Toggle Full View / Bilateral Focus View */}
+          {/* Primary View Toggle: Mode Panggung Piala vs Mode Bagan Kolom */}
           <button
-            onClick={() => setIsFullView((prev) => !prev)}
+            onClick={() => setViewPreference(isBilateralView ? 'linear' : 'bilateral')}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition shadow ${
-              isFullView
-                ? 'bg-gold-500 text-coffee-950 border-gold-400 font-black'
-                : 'bg-[#2a1a12] border-gold-500/40 text-gold-300 hover:bg-[#382318]'
+              isBilateralView
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-coffee-950 border-yellow-400 font-black shadow-[0_0_15px_rgba(234,179,8,0.4)] hover:brightness-110 active:scale-95'
+                : 'bg-[#2a1a12] border-gold-500/40 text-gold-300 hover:bg-[#382318] active:scale-95'
             }`}
-            title={isFullView ? 'Kembali ke Bagan Simetris Kiri-Kanan' : 'Tampilkan Semua Kolom Lengkap'}
+            title={isBilateralView ? 'Beralih ke Bagan Kolom Linier' : 'Beralih ke Panggung Piala Simetris'}
           >
-            {isFullView ? (
+            {isBilateralView ? (
               <>
-                <EyeOff className="w-4 h-4" />
-                <span>Bagan Kiri-Kanan</span>
+                <LayoutGrid className="w-4 h-4" />
+                <span>Mode Bagan Kolom</span>
               </>
             ) : (
               <>
-                <Eye className="w-4 h-4" />
-                <span>Full View {hiddenCount > 0 ? `(+${hiddenCount})` : ''}</span>
+                <Trophy className="w-4 h-4 text-yellow-400" />
+                <span>Mode Panggung Piala</span>
               </>
             )}
           </button>
+
+          {/* Secondary Toggle: Full View (only active in linear column mode) */}
+          {!isBilateralView && (
+            <button
+              onClick={() => setIsFullView((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition shadow ${
+                isFullView
+                  ? 'bg-gold-500 text-coffee-950 border-gold-400 font-black'
+                  : 'bg-[#2a1a12] border-gold-500/40 text-gold-300 hover:bg-[#382318]'
+              }`}
+              title={isFullView ? 'Sembunyikan Babak Selesai' : 'Tampilkan Semua Kolom Lengkap'}
+            >
+              {isFullView ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <span>{isFullView ? 'Fokus Aktif' : `Semua Kolom ${hiddenCount > 0 ? `(+${hiddenCount})` : ''}`}</span>
+            </button>
+          )}
 
           {tournament.winners?.first && (
             <button
@@ -760,22 +787,28 @@ export default function TvBracketPage() {
         <div className="flex-1 w-full grid grid-cols-12 gap-3.5 items-stretch my-2 overflow-hidden">
           {/* SAYAP KIRI (Cols 1-4) */}
           <div className="col-span-4 flex items-stretch gap-3 h-full">
-            {/* Column 1: Babak 3 Kiri (Battle 22 & 23) */}
+            {/* Column 1: Babak Perempat Final Kiri */}
             <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
               <div className="text-center bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
-                <div>BABAK 3 (KIRI)</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">PEREMPAT FINAL</div>
+                <div>{roundBabak3?.name ? `${roundBabak3.name} (KIRI)` : 'BABAK KIRI'}</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">
+                  {b3LeftIds.length > 0 ? `${b3LeftIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
+                </div>
               </div>
               <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {b3LeftIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
               </div>
             </div>
 
-            {/* Column 2: Semifinal Kiri (Battle 25) */}
+            {/* Column 2: Semifinal Kiri */}
             <div className="flex-1 flex flex-col h-full bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2.5 shadow-xl">
               <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
                 <div>SEMIFINAL 1</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">BATTLE 25</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">
+                  {semiLeftId && tournament.matches[semiLeftId]
+                    ? getMatchDisplayLabel(tournament.matches[semiLeftId]).toUpperCase()
+                    : 'SEMIFINAL 1'}
+                </div>
               </div>
               <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {semiLeftId && renderMatchCard(tournament.matches[semiLeftId], 'prominent')}
@@ -837,7 +870,7 @@ export default function TvBracketPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-center">
-                    {/* Finalis A (Pemenang Battle 25) */}
+                    {/* Finalis A */}
                     <div
                       className={`p-2 rounded-xl flex flex-col items-center justify-center ${
                         grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId
@@ -847,7 +880,10 @@ export default function TvBracketPage() {
                     >
                       <span className="text-[10px] font-bold text-red-400 uppercase">SUDUT MERAH</span>
                       <span className="text-xs md:text-sm font-black truncate max-w-full">
-                        {grandFinalMatch.participantA?.name || 'Pemenang Battle 25'}
+                        {grandFinalMatch.participantA?.name ||
+                          (semiLeftId && tournament.matches[semiLeftId]
+                            ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiLeftId])}`
+                            : 'Pemenang Semifinal 1')}
                       </span>
                       {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
                         <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
@@ -857,7 +893,7 @@ export default function TvBracketPage() {
                       )}
                     </div>
 
-                    {/* Finalis B (Pemenang Battle 26) */}
+                    {/* Finalis B */}
                     <div
                       className={`p-2 rounded-xl flex flex-col items-center justify-center ${
                         grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId
@@ -867,7 +903,10 @@ export default function TvBracketPage() {
                     >
                       <span className="text-[10px] font-bold text-blue-400 uppercase">SUDUT BIRU</span>
                       <span className="text-xs md:text-sm font-black truncate max-w-full">
-                        {grandFinalMatch.participantB?.name || 'Pemenang Battle 26'}
+                        {grandFinalMatch.participantB?.name ||
+                          (semiRightId && tournament.matches[semiRightId]
+                            ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiRightId])}`
+                            : 'Pemenang Semifinal 2')}
                       </span>
                       {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
                         <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
@@ -912,9 +951,16 @@ export default function TvBracketPage() {
                           : 'bg-black/50 text-white'
                       }`}
                     >
-                      <span className="text-[9px] font-bold text-red-400 uppercase">KALAH BATTLE 25</span>
+                      <span className="text-[9px] font-bold text-red-400 uppercase">
+                        {semiLeftId && tournament.matches[semiLeftId]
+                          ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiLeftId]).toUpperCase()}`
+                          : 'KALAH SEMIFINAL 1'}
+                      </span>
                       <span className="text-xs font-black truncate max-w-full">
-                        {thirdPlaceMatch.participantA?.name || 'Kalah Battle 25'}
+                        {thirdPlaceMatch.participantA?.name ||
+                          (semiLeftId && tournament.matches[semiLeftId]
+                            ? `Kalah ${getMatchDisplayLabel(tournament.matches[semiLeftId])}`
+                            : 'Kalah Semifinal 1')}
                       </span>
                       {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId && (
                         <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
@@ -928,9 +974,16 @@ export default function TvBracketPage() {
                           : 'bg-black/50 text-white'
                       }`}
                     >
-                      <span className="text-[9px] font-bold text-blue-400 uppercase">KALAH BATTLE 26</span>
+                      <span className="text-[9px] font-bold text-blue-400 uppercase">
+                        {semiRightId && tournament.matches[semiRightId]
+                          ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiRightId]).toUpperCase()}`
+                          : 'KALAH SEMIFINAL 2'}
+                      </span>
                       <span className="text-xs font-black truncate max-w-full">
-                        {thirdPlaceMatch.participantB?.name || 'Kalah Battle 26'}
+                        {thirdPlaceMatch.participantB?.name ||
+                          (semiRightId && tournament.matches[semiRightId]
+                            ? `Kalah ${getMatchDisplayLabel(tournament.matches[semiRightId])}`
+                            : 'Kalah Semifinal 2')}
                       </span>
                       {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId && (
                         <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
@@ -945,29 +998,39 @@ export default function TvBracketPage() {
             <div className="relative z-10 pt-1 text-center border-t border-gold-500/30">
               <div className="text-[11px] font-bold text-gold-300 flex items-center justify-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-gold-400" />
-                <span>Pemenang Battle 25 vs 26 diadu untuk Juara 1 & 2 • Kalah untuk Juara 3</span>
+                <span>
+                  {semiLeftId && semiRightId && tournament.matches[semiLeftId] && tournament.matches[semiRightId]
+                    ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiLeftId])} vs ${getMatchDisplayLabel(tournament.matches[semiRightId])} diadu untuk Juara 1 & 2 • Kalah untuk Juara 3`
+                    : 'Pemenang Semifinal diadu untuk Juara 1 & 2 • Kalah untuk Juara 3'}
+                </span>
               </div>
             </div>
           </div>
 
           {/* SAYAP KANAN (Cols 9-12) */}
           <div className="col-span-4 flex items-stretch gap-3 h-full">
-            {/* Column 3: Semifinal Kanan (Battle 26) */}
+            {/* Column 3: Semifinal Kanan */}
             <div className="flex-1 flex flex-col h-full bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2.5 shadow-xl">
               <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
                 <div>SEMIFINAL 2</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">BATTLE 26</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">
+                  {semiRightId && tournament.matches[semiRightId]
+                    ? getMatchDisplayLabel(tournament.matches[semiRightId]).toUpperCase()
+                    : 'SEMIFINAL 2'}
+                </div>
               </div>
               <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {semiRightId && renderMatchCard(tournament.matches[semiRightId], 'prominent')}
               </div>
             </div>
 
-            {/* Column 4: Babak 3 Kanan (Battle 24 & Bypass) */}
+            {/* Column 4: Babak Perempat Final Kanan */}
             <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
               <div className="text-center bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
-                <div>BABAK 3 (KANAN)</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">PEREMPAT FINAL</div>
+                <div>{roundBabak3?.name ? `${roundBabak3.name} (KANAN)` : 'BABAK KANAN'}</div>
+                <div className="text-[10px] text-coffee-950/80 font-bold">
+                  {b3RightIds.length > 0 ? `${b3RightIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
+                </div>
               </div>
               <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {b3RightIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
