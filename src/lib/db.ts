@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { Pool } from 'pg';
 
 export interface User {
@@ -159,54 +160,128 @@ async function ensurePgSchema(pool: Pool) {
 }
 
 /* ========================================================
-   FILE-BASED ADAPTER (Localhost / Fallback)
+   FILE & MEMORY-BASED ADAPTER (Vercel / Serverless / Localhost)
 ======================================================== */
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DATA_DIR, 'tournament_db.json');
+const DEFAULT_ADMIN_USER: User = {
+  id: 'user_admin',
+  username: 'admin',
+  passwordHash: 'admin123',
+  name: 'Panitia Turnamen',
+  createdAt: '2026-10-09T00:00:00.000Z',
+};
 
-function ensureFileDb(): DatabaseSchema {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+declare global {
+  // eslint-disable-next-line no-var
+  var __spinbracket_memory_db: DatabaseSchema | undefined;
+}
 
-  if (!fs.existsSync(DB_FILE)) {
-    const initialData: DatabaseSchema = {
-      users: [
-        {
-          id: 'user_admin',
-          username: 'admin',
-          passwordHash: 'admin123',
-          name: 'Panitia Turnamen',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-      tournaments: [],
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
-  }
-
+function resolveDbPaths(): { dataDir: string; dbFile: string } {
+  // 1. Try local data dir (works on Localhost, VPS, Docker)
   try {
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error('Failed to parse db file, reinitializing', err);
-    const initialData: DatabaseSchema = {
-      users: [],
-      tournaments: [],
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
+    const localDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(localDir)) {
+      fs.mkdirSync(localDir, { recursive: true });
+    }
+    const testFile = path.join(localDir, '.write_test');
+    fs.writeFileSync(testFile, 'ok', 'utf-8');
+    fs.unlinkSync(testFile);
+    return { dataDir: localDir, dbFile: path.join(localDir, 'tournament_db.json') };
+  } catch {
+    // 2. Read-only filesystem (Vercel, AWS Lambda, Serverless): use os.tmpdir()
+    const tmpDir = path.join(os.tmpdir(), 'spinbracket_data');
+    try {
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
+    } catch {
+      // ignore
+    }
+    return { dataDir: tmpDir, dbFile: path.join(tmpDir, 'tournament_db.json') };
   }
 }
 
-function writeFileDb(data: DatabaseSchema) {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+function ensureFileDb(): DatabaseSchema {
+  // Return memory store if already loaded
+  if (globalThis.__spinbracket_memory_db) {
+    if (!globalThis.__spinbracket_memory_db.users.some((u) => u.username.toLowerCase() === 'admin')) {
+      globalThis.__spinbracket_memory_db.users.unshift(DEFAULT_ADMIN_USER);
+    }
+    return globalThis.__spinbracket_memory_db;
   }
-  const tempFile = `${DB_FILE}.tmp`;
-  fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tempFile, DB_FILE);
+
+  const { dataDir, dbFile } = resolveDbPaths();
+  let loadedData: DatabaseSchema | null = null;
+
+  // Try reading from dbFile
+  try {
+    if (fs.existsSync(dbFile)) {
+      const raw = fs.readFileSync(dbFile, 'utf-8');
+      loadedData = JSON.parse(raw);
+    }
+  } catch (err) {
+    console.warn('Could not read from dbFile:', err);
+  }
+
+  // If not found in tmp, try reading bundled data from process.cwd()/data/tournament_db.json
+  if (!loadedData) {
+    try {
+      const bundledPath = path.join(process.cwd(), 'data', 'tournament_db.json');
+      if (fs.existsSync(bundledPath)) {
+        const raw = fs.readFileSync(bundledPath, 'utf-8');
+        loadedData = JSON.parse(raw);
+      }
+    } catch (err) {
+      console.warn('Could not read bundled database:', err);
+    }
+  }
+
+  // Default fallback if no file could be read
+  if (!loadedData || !Array.isArray(loadedData.users)) {
+    loadedData = {
+      users: [DEFAULT_ADMIN_USER],
+      tournaments: [],
+    };
+  } else {
+    // Ensure admin user exists
+    if (!loadedData.users.some((u) => u.username.toLowerCase() === 'admin')) {
+      loadedData.users.unshift(DEFAULT_ADMIN_USER);
+    }
+  }
+
+  // Cache in memory
+  globalThis.__spinbracket_memory_db = loadedData;
+
+  // Attempt to write initial state if file doesn't exist
+  try {
+    if (!fs.existsSync(dbFile)) {
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      fs.writeFileSync(dbFile, JSON.stringify(loadedData, null, 2), 'utf-8');
+    }
+  } catch {
+    // Ignore write failure in read-only environments
+  }
+
+  return loadedData;
+}
+
+function writeFileDb(data: DatabaseSchema) {
+  // Always update memory store first
+  globalThis.__spinbracket_memory_db = data;
+
+  try {
+    const { dataDir, dbFile } = resolveDbPaths();
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const tempFile = `${dbFile}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempFile, dbFile);
+  } catch (err) {
+    // In serverless / read-only filesystem, warning only - data remains safe in memory store!
+    console.warn('Notice: Disk write skipped in serverless environment, data preserved in memory cache.');
+  }
 }
 
 /* ========================================================
@@ -216,22 +291,28 @@ function writeFileDb(data: DatabaseSchema) {
 export async function getUserByUsername(username: string): Promise<User | undefined> {
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    const res = await pool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1', [username]);
-    if (res.rows.length === 0) return undefined;
-    const r = res.rows[0];
-    return {
-      id: r.id,
-      username: r.username,
-      passwordHash: r.password_hash,
-      name: r.name,
-      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-      activeSessionId: r.active_session_id || null,
-      activeDeviceId: r.active_device_id || null,
-      activeDeviceName: r.active_device_name || null,
-      lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
-      lastIp: r.last_ip || null,
-    };
+    try {
+      await ensurePgSchema(pool);
+      const res = await pool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1', [username]);
+      if (res.rows.length > 0) {
+        const r = res.rows[0];
+        return {
+          id: r.id,
+          username: r.username,
+          passwordHash: r.password_hash,
+          name: r.name,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          activeSessionId: r.active_session_id || null,
+          activeDeviceId: r.active_device_id || null,
+          activeDeviceName: r.active_device_name || null,
+          lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
+          lastIp: r.last_ip || null,
+        };
+      }
+      return undefined;
+    } catch (err) {
+      console.warn('PostgreSQL query error, falling back to file/memory DB:', err);
+    }
   }
 
   const db = ensureFileDb();
@@ -241,22 +322,28 @@ export async function getUserByUsername(username: string): Promise<User | undefi
 export async function getUserById(id: string): Promise<User | undefined> {
   const pool = getPgPool();
   if (pool) {
-    await ensurePgSchema(pool);
-    const res = await pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [id]);
-    if (res.rows.length === 0) return undefined;
-    const r = res.rows[0];
-    return {
-      id: r.id,
-      username: r.username,
-      passwordHash: r.password_hash,
-      name: r.name,
-      createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
-      activeSessionId: r.active_session_id || null,
-      activeDeviceId: r.active_device_id || null,
-      activeDeviceName: r.active_device_name || null,
-      lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
-      lastIp: r.last_ip || null,
-    };
+    try {
+      await ensurePgSchema(pool);
+      const res = await pool.query('SELECT * FROM users WHERE id = $1 LIMIT 1', [id]);
+      if (res.rows.length > 0) {
+        const r = res.rows[0];
+        return {
+          id: r.id,
+          username: r.username,
+          passwordHash: r.password_hash,
+          name: r.name,
+          createdAt: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+          activeSessionId: r.active_session_id || null,
+          activeDeviceId: r.active_device_id || null,
+          activeDeviceName: r.active_device_name || null,
+          lastActiveAt: r.last_active_at ? Number(r.last_active_at) : null,
+          lastIp: r.last_ip || null,
+        };
+      }
+      return undefined;
+    } catch (err) {
+      console.warn('PostgreSQL query error, falling back to file/memory DB:', err);
+    }
   }
 
   const db = ensureFileDb();
