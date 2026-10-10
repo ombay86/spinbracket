@@ -109,6 +109,46 @@ export default function TvBracketPage() {
         router.push('/dashboard');
         return;
       }
+
+      // Self-heal: ensure no bypass match was prematurely auto-completed or forwarded to next rounds
+      let hasChanges = false;
+      const updatedMatches = { ...t.matches };
+
+      Object.values(updatedMatches).forEach((m) => {
+        // If a match is flagged with isBye or was a bypass match, but user never manually confirmed a winner
+        // or it was auto-completed by the legacy generator
+        if (m.participantB?.isBye) {
+          // If match was auto-completed without opponent and has a next match where participantA was auto-copied
+          if (m.status === 'completed' && m.winnerId === m.participantA?.participantId) {
+            // Check if user has not actually selected a winner (still only 1 participant and opponent isBye)
+            // Reset to pending / ready so operator can select winner or fill opponent
+            m.status = 'ready';
+            m.winnerId = null;
+            hasChanges = true;
+
+            // Also remove prematurely forwarded participant from next match if next match has not completed
+            if (m.nextMatchId && updatedMatches[m.nextMatchId]) {
+              const nextM = { ...updatedMatches[m.nextMatchId] };
+              if (nextM.status !== 'completed') {
+                if (m.nextMatchSlot === 'A' && nextM.participantA?.participantId === m.participantA?.participantId) {
+                  nextM.participantA = null;
+                  hasChanges = true;
+                } else if (m.nextMatchSlot === 'B' && nextM.participantB?.participantId === m.participantA?.participantId) {
+                  nextM.participantB = null;
+                  hasChanges = true;
+                }
+                updatedMatches[m.nextMatchId] = nextM;
+              }
+            }
+          }
+        }
+      });
+
+      if (hasChanges) {
+        t.matches = updatedMatches;
+        clientDb.saveTournament(t);
+      }
+
       setTournament(t);
     } catch (e) {
       console.error(e);
@@ -486,100 +526,13 @@ export default function TvBracketPage() {
   const renderMatchCard = (match: Match | undefined, variant: 'normal' | 'prominent' = 'normal') => {
     if (!match) return null;
 
-    const isCompleted = match.status === 'completed';
+    const isCompleted = match.status === 'completed' && !!match.winnerId;
     const isBye = match.participantB?.isBye;
     const isProminent = variant === 'prominent';
     const displayLabel = getMatchDisplayLabel(match);
 
-    if (isBye) {
-      return (
-        <div
-          key={match.id}
-          onClick={() => setSelectedMatch(match)}
-          className={`cursor-pointer shrink-0 border-2 transition hover:scale-[1.01] p-3 rounded-2xl ${
-            isCompleted
-              ? 'bg-[#1e130c] border-emerald-500/80 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
-              : 'bg-[#20140c] border-amber-500/80 shadow-[0_0_20px_rgba(234,179,8,0.2)]'
-          }`}
-        >
-          <div className="flex items-center justify-between text-gold-400 mb-1.5 text-xs font-black">
-            <span className="truncate flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-              {displayLabel}
-            </span>
-            {isCompleted ? (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500 text-black font-black">LOLOS</span>
-            ) : (
-              <span className="text-[10px] text-amber-300 font-bold">KLIK ARENA</span>
-            )}
-          </div>
-
-          {/* Participant A */}
-          <div
-            className={`flex items-center justify-between mb-1.5 px-3 py-1.5 rounded-xl group/slot relative ${
-              match.winnerId === match.participantA?.participantId
-                ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
-                : 'bg-black/50 text-white'
-            }`}
-          >
-            <div className="flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-              <span className="truncate text-sm md:text-base font-black">
-                {match.participantA?.name || 'Menunggu Peserta...'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0 ml-1">
-              {match.winnerId === match.participantA?.participantId && (
-                <Award className="w-3.5 h-3.5 text-coffee-950" />
-              )}
-              {!isCompleted && (
-                <button
-                  type="button"
-                  onClick={(e) => handleOpenSlotAssign(match, 'A', e)}
-                  className="opacity-70 hover:opacity-100 p-1 rounded-md bg-white/10 hover:bg-gold-500 hover:text-coffee-950 text-gold-300 transition"
-                  title="Edit Nama / Ganti Peserta"
-                >
-                  <Edit3 className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Opponent Slot (Slot B / Penantang dari Peserta yang Kalah / Tambahan) */}
-          <div
-            className={`flex items-center justify-between px-3 py-1.5 rounded-xl group/slot relative border ${
-              match.participantB?.isBye
-                ? 'bg-amber-950/40 border-dashed border-amber-600/60 text-amber-300/90'
-                : match.winnerId === match.participantB?.participantId
-                ? 'bg-gold-500 border-gold-400 text-coffee-950 font-black shadow-md'
-                : 'bg-black/50 border-coffee-800 text-white'
-            }`}
-          >
-            <div className="flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-              <span className="truncate text-xs md:text-sm font-bold">
-                {match.participantB?.isBye
-                  ? '➕ Isi Lawan (Peserta Kalah / Manual)'
-                  : match.participantB?.name || 'Slot Kosong'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0 ml-1">
-              {!isCompleted && (
-                <button
-                  type="button"
-                  onClick={(e) => handleOpenSlotAssign(match, 'B', e)}
-                  className="p-1 rounded-md bg-gold-500/20 hover:bg-gold-500 text-gold-300 hover:text-coffee-950 transition font-bold text-[10px] flex items-center gap-1"
-                  title="Isi Peserta Lawan Manual / Wildcard"
-                >
-                  <UserPlus className="w-3 h-3" />
-                  <span>{match.participantB?.isBye ? 'Isi Lawan' : 'Ganti'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      );
-    }
+    const hasSlotA = !!match.participantA?.participantId;
+    const hasSlotB = !!match.participantB?.participantId && !match.participantB?.isBye;
 
     return (
       <div
@@ -590,13 +543,13 @@ export default function TvBracketPage() {
         } ${
           isCompleted
             ? 'bg-[#1e130c] border-gold-500/80 shadow-[0_0_15px_rgba(234,179,8,0.2)]'
-            : match.participantA?.participantId && match.participantB?.participantId
+            : hasSlotA && (hasSlotB || isBye)
             ? 'bg-[#241710] border-coffee-700 hover:border-gold-400 shadow-md'
-            : 'bg-[#140d09] border-coffee-900 text-coffee-600'
+            : 'bg-[#140d09] border-coffee-900/80 text-coffee-600'
         }`}
       >
         <div className="flex items-center justify-between text-gold-400 mb-1.5 text-xs font-black">
-          <span className="truncate">{match.label}</span>
+          <span className="truncate">{displayLabel}</span>
           {isCompleted ? (
             <Check className="text-emerald-400 w-3.5 h-3.5 shrink-0" />
           ) : (
@@ -606,15 +559,25 @@ export default function TvBracketPage() {
 
         {/* Participant A */}
         <div
-          className={`flex items-center justify-between mb-1 px-3 py-1.5 rounded-xl group/slot relative ${
+          className={`flex items-center justify-between mb-1 px-3 py-1.5 rounded-xl group/slot relative transition ${
             match.winnerId === match.participantA?.participantId
               ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
-              : 'bg-black/50 text-white'
+              : hasSlotA
+              ? 'bg-black/50 text-white'
+              : 'bg-black/25 text-coffee-500/60 border border-dashed border-coffee-800/40'
           }`}
         >
           <div className="flex items-center gap-1.5 truncate">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-            <span className="truncate text-sm md:text-base font-black">
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                hasSlotA ? 'bg-red-400' : 'bg-red-900/40'
+              }`}
+            />
+            <span
+              className={`truncate text-sm md:text-base ${
+                hasSlotA ? 'font-black text-white' : 'font-normal italic text-coffee-500/70 text-xs md:text-sm'
+              }`}
+            >
               {match.participantA?.name || 'Slot Kosong'}
             </span>
           </div>
@@ -624,15 +587,12 @@ export default function TvBracketPage() {
             )}
             {!isCompleted && match.roundIndex <= 1 && (
               <button
+                type="button"
                 onClick={(e) => handleOpenSlotAssign(match, 'A', e)}
                 className="opacity-60 hover:opacity-100 p-1 rounded-md bg-white/10 hover:bg-gold-500 hover:text-coffee-950 text-gold-300 transition"
-                title={match.participantA?.participantId ? 'Ganti Peserta' : 'Tambah Peserta'}
+                title={hasSlotA ? 'Edit Nama / Ganti Peserta' : 'Tambah Peserta'}
               >
-                {match.participantA?.participantId ? (
-                  <Edit3 className="w-3 h-3" />
-                ) : (
-                  <UserPlus className="w-3 h-3" />
-                )}
+                {hasSlotA ? <Edit3 className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
               </button>
             )}
           </div>
@@ -640,16 +600,34 @@ export default function TvBracketPage() {
 
         {/* Participant B */}
         <div
-          className={`flex items-center justify-between px-3 py-1.5 rounded-xl group/slot relative ${
+          className={`flex items-center justify-between px-3 py-1.5 rounded-xl group/slot relative transition ${
             match.winnerId === match.participantB?.participantId
               ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
-              : 'bg-black/50 text-white'
+              : hasSlotB
+              ? 'bg-black/50 text-white'
+              : isBye
+              ? 'bg-black/25 text-coffee-400/80 border border-dashed border-coffee-700/50'
+              : 'bg-black/25 text-coffee-500/60 border border-dashed border-coffee-800/40'
           }`}
         >
           <div className="flex items-center gap-1.5 truncate">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-            <span className="truncate text-sm md:text-base font-black">
-              {match.participantB?.name || 'Slot Kosong'}
+            <span
+              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                hasSlotB || isBye ? 'bg-blue-400' : 'bg-blue-900/40'
+              }`}
+            />
+            <span
+              className={`truncate ${
+                hasSlotB
+                  ? 'font-black text-white text-sm md:text-base'
+                  : isBye
+                  ? 'font-medium text-coffee-400/90 text-xs md:text-sm'
+                  : 'font-normal italic text-coffee-500/70 text-xs md:text-sm'
+              }`}
+            >
+              {isBye
+                ? '➕ Isi Lawan (Adu Lagi)'
+                : match.participantB?.name || 'Slot Kosong'}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-1">
@@ -658,15 +636,12 @@ export default function TvBracketPage() {
             )}
             {!isCompleted && match.roundIndex <= 1 && (
               <button
+                type="button"
                 onClick={(e) => handleOpenSlotAssign(match, 'B', e)}
-                className="opacity-60 hover:opacity-100 p-1 rounded-md bg-white/10 hover:bg-gold-500 hover:text-coffee-950 text-gold-300 transition"
-                title={match.participantB?.participantId ? 'Ganti Peserta' : 'Tambah Peserta'}
+                className="opacity-70 hover:opacity-100 p-1 rounded-md bg-white/10 hover:bg-gold-500 hover:text-coffee-950 text-gold-300 transition"
+                title={hasSlotB ? 'Edit Nama / Ganti Peserta' : 'Tambah Peserta Lawan'}
               >
-                {match.participantB?.participantId ? (
-                  <Edit3 className="w-3 h-3" />
-                ) : (
-                  <UserPlus className="w-3 h-3" />
-                )}
+                {hasSlotB ? <Edit3 className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
               </button>
             )}
           </div>

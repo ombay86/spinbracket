@@ -226,17 +226,8 @@ export function createDynamicBracket(
           affiliation: p.affiliation,
           photo: p.photo,
         };
-        matches[mId].winnerId = p.id;
-        matches[mId].status = 'completed';
-
-        if (matches[mId].nextMatchId && matches[matches[mId].nextMatchId!]) {
-          const nextM = matches[matches[mId].nextMatchId!];
-          if (matches[mId].nextMatchSlot === 'A') {
-            nextM.participantA = { ...matches[mId].participantA };
-          } else {
-            nextM.participantB = { ...matches[mId].participantA };
-          }
-        }
+        matches[mId].winnerId = null;
+        matches[mId].status = 'ready';
       }
       continue;
     }
