@@ -14,34 +14,43 @@ export async function POST(request: Request) {
     let user = await getUserByUsername(username);
     let isAuthenticated = !!(user && user.passwordHash === password);
 
-    // Fallback: check Jurnal Ombay SSO login endpoint
+    // Primary & Fallback: check Jurnal Ombay SSO login endpoints (both production & local)
     if (!isAuthenticated) {
-      const jurnalHost =
-        process.env.NEXT_PUBLIC_JURNALOMBAY_HOST ||
-        (process.env.NODE_ENV === 'production' ? 'https://jurnalombay.my.id' : 'http://localhost:4000');
-      try {
-        const ssoLoginRes = await fetch(`${jurnalHost}/sso/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier: username, password }),
-        });
+      const hosts = [
+        process.env.NEXT_PUBLIC_JURNALOMBAY_HOST,
+        'https://jurnalombay.my.id',
+        'http://localhost:4000',
+      ].filter(Boolean) as string[];
 
-        if (ssoLoginRes.ok) {
-          const ssoData = await ssoLoginRes.json();
-          if (ssoData.success && ssoData.user) {
-            if (!user) {
-              try {
-                const { createUser } = await import('@/lib/db');
-                user = await createUser(username, password, ssoData.user.fullName || username);
-              } catch {
-                user = await getUserByUsername(username);
+      for (const host of hosts) {
+        try {
+          const ssoLoginRes = await fetch(`${host}/sso/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: username, password }),
+          });
+
+          if (ssoLoginRes.ok) {
+            const ssoData = await ssoLoginRes.json();
+            if (ssoData.success && ssoData.user) {
+              if (!user) {
+                try {
+                  const { createUser } = await import('@/lib/db');
+                  user = await createUser(username, password, ssoData.user.fullName || username);
+                } catch {
+                  user = await getUserByUsername(username);
+                }
+              } else {
+                // Update local passwordHash to match SSO password
+                user.passwordHash = password;
               }
+              isAuthenticated = true;
+              break;
             }
-            isAuthenticated = true;
           }
+        } catch (e) {
+          // try next host
         }
-      } catch (e) {
-        // offline fallback
       }
     }
 
