@@ -75,9 +75,10 @@ export default function TvBracketPage() {
   const [customPhoto, setCustomPhoto] = useState('');
   const [selectedExistingId, setSelectedExistingId] = useState('');
 
-  // Drag and Drop Player Reshuffling in Bracket
+  // Drag and Drop Player Reshuffling in Bracket (strictly within the same round/column)
   const [draggedSlot, setDraggedSlot] = useState<{
     matchId: string;
+    roundIndex: number;
     slot: 'A' | 'B';
     participant: any;
   } | null>(null);
@@ -554,6 +555,14 @@ export default function TvBracketPage() {
     const destMatch = { ...updatedMatches[targetMatchId] };
     const srcMatch = sourceMatchId === targetMatchId ? destMatch : { ...updatedMatches[sourceMatchId] };
 
+    // STRICT: Only allow swapping slots within the same round/column (atas-bawah pada kolom babak yang sama)
+    if (destMatch.roundIndex !== srcMatch.roundIndex) {
+      showAlert.warning('Tidak Dapat Ditukar Antar Babak', 'Pemain hanya dapat digeser ke atas/bawah pada kolom babak yang sama.');
+      setDraggedSlot(null);
+      setDragOverTarget(null);
+      return;
+    }
+
     // Don't allow reshuffling completed matches
     if (destMatch.status === 'completed' || srcMatch.status === 'completed') {
       showAlert.warning('Tidak Dapat Ditukar', 'Pertandingan yang sudah selesai tidak dapat ditukar posisinya.');
@@ -599,6 +608,89 @@ export default function TvBracketPage() {
 
     setDraggedSlot(null);
     setDragOverTarget(null);
+  };
+
+  // Reshuffle all active/uncompleted players within a specific round
+  const handleReshuffleRound = async (roundIndex: number) => {
+    if (!tournament) return;
+
+    const round = tournament.rounds[roundIndex];
+    if (!round) return;
+
+    const matchIds = round.matchIds || [];
+    const updatedMatches = { ...tournament.matches };
+
+    // Find matches in this round that are not yet completed
+    const uncompletedMatches = matchIds
+      .map((id) => updatedMatches[id])
+      .filter((m) => m && m.status !== 'completed' && !m.winnerId);
+
+    if (uncompletedMatches.length === 0) {
+      showAlert.warning('Babak Sudah Selesai', `Seluruh pertandingan pada ${round.name} telah selesai dipertandingkan.`);
+      return;
+    }
+
+    // Collect active players from these uncompleted matches
+    const activePlayers: any[] = [];
+    uncompletedMatches.forEach((m) => {
+      if (m.participantA?.participantId) {
+        activePlayers.push({ ...m.participantA });
+      }
+      if (m.participantB?.participantId && !m.participantB.isBye) {
+        activePlayers.push({ ...m.participantB });
+      }
+    });
+
+    if (activePlayers.length < 2) {
+      showAlert.warning('Tidak Cukup Pemain', `Dibutuhkan minimal 2 pemain pada ${round.name} untuk dapat dikocok ulang.`);
+      return;
+    }
+
+    const confirmed = await showAlert.confirm({
+      title: `Kocok Ulang ${round.name}?`,
+      text: `Posisi ${activePlayers.length} pemain yang belum bertanding pada ${round.name} akan diacak ulang secara acak.`,
+      confirmText: 'Ya, Kocok Ulang',
+      cancelText: 'Batal',
+    });
+
+    if (!confirmed) return;
+
+    // Fisher-Yates shuffle
+    for (let i = activePlayers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [activePlayers[i], activePlayers[j]] = [activePlayers[j], activePlayers[i]];
+    }
+
+    let pIdx = 0;
+    uncompletedMatches.forEach((m) => {
+      // Slot A
+      if (pIdx < activePlayers.length) {
+        m.participantA = activePlayers[pIdx++];
+      } else {
+        m.participantA = null;
+      }
+
+      // Slot B (preserve bye if any)
+      if (m.participantB?.isBye) {
+        // preserve BYE
+      } else if (pIdx < activePlayers.length) {
+        m.participantB = activePlayers[pIdx++];
+      } else {
+        m.participantB = null;
+      }
+
+      m.status = m.participantA?.participantId && (m.participantB?.participantId || m.participantB?.isBye) ? 'ready' : 'pending';
+    });
+
+    const updatedTournament: Tournament = {
+      ...tournament,
+      matches: updatedMatches,
+      updatedAt: new Date().toISOString(),
+    };
+
+    clientDb.saveTournament(updatedTournament);
+    setTournament(updatedTournament);
+    showAlert.success('Kocok Ulang Berhasil!', `Posisi lawan pada ${round.name} berhasil diacak ulang.`, 2000);
   };
 
   const handleOpenGrandFinale = () => {
@@ -746,7 +838,7 @@ export default function TvBracketPage() {
         {/* Participant A */}
         <div
           onDragOver={(e) => {
-            if (!isCompleted) {
+            if (!isCompleted && draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
               e.preventDefault();
               setDragOverTarget(`${match.id}-A`);
             }
@@ -754,7 +846,13 @@ export default function TvBracketPage() {
           onDragLeave={() => setDragOverTarget(null)}
           onDrop={(e) => {
             e.preventDefault();
-            handleDropOnTvSlot(match.id, 'A');
+            if (draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
+              handleDropOnTvSlot(match.id, 'A');
+            } else {
+              showAlert.warning('Tidak Dapat Ditukar Antar Babak', 'Pemain hanya dapat digeser ke atas/bawah pada kolom babak yang sama.');
+              setDraggedSlot(null);
+              setDragOverTarget(null);
+            }
           }}
           draggable={hasSlotA && !isCompleted}
           onDragStart={(e) => {
@@ -762,6 +860,7 @@ export default function TvBracketPage() {
               e.stopPropagation();
               setDraggedSlot({
                 matchId: match.id,
+                roundIndex: match.roundIndex,
                 slot: 'A',
                 participant: match.participantA,
               });
@@ -772,7 +871,7 @@ export default function TvBracketPage() {
             setDragOverTarget(null);
           }}
           className={`flex items-center justify-between mb-1 px-3 py-1.5 rounded-xl group/slot relative transition ${
-            dragOverTarget === `${match.id}-A`
+            dragOverTarget === `${match.id}-A` && draggedSlot?.roundIndex === match.roundIndex
               ? 'bg-gold-500/40 border-2 border-gold-400 scale-[1.02] shadow-[0_0_12px_rgba(234,179,8,0.5)]'
               : match.winnerId === match.participantA?.participantId
               ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
@@ -792,7 +891,7 @@ export default function TvBracketPage() {
                 hasSlotA ? 'font-black text-white' : 'font-normal italic text-coffee-500/70 text-xs md:text-sm'
               }`}
             >
-              {match.participantA?.name || (dragOverTarget === `${match.id}-A` ? 'Tukar ke sini' : 'Slot Kosong')}
+              {match.participantA?.name || (dragOverTarget === `${match.id}-A` && draggedSlot?.roundIndex === match.roundIndex ? 'Tukar ke sini' : 'Slot Kosong')}
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-1">
@@ -815,7 +914,7 @@ export default function TvBracketPage() {
         {/* Participant B */}
         <div
           onDragOver={(e) => {
-            if (!isCompleted) {
+            if (!isCompleted && draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
               e.preventDefault();
               setDragOverTarget(`${match.id}-B`);
             }
@@ -823,7 +922,13 @@ export default function TvBracketPage() {
           onDragLeave={() => setDragOverTarget(null)}
           onDrop={(e) => {
             e.preventDefault();
-            handleDropOnTvSlot(match.id, 'B');
+            if (draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
+              handleDropOnTvSlot(match.id, 'B');
+            } else {
+              showAlert.warning('Tidak Dapat Ditukar Antar Babak', 'Pemain hanya dapat digeser ke atas/bawah pada kolom babak yang sama.');
+              setDraggedSlot(null);
+              setDragOverTarget(null);
+            }
           }}
           draggable={hasSlotB && !isCompleted}
           onDragStart={(e) => {
@@ -831,6 +936,7 @@ export default function TvBracketPage() {
               e.stopPropagation();
               setDraggedSlot({
                 matchId: match.id,
+                roundIndex: match.roundIndex,
                 slot: 'B',
                 participant: match.participantB,
               });
@@ -841,7 +947,7 @@ export default function TvBracketPage() {
             setDragOverTarget(null);
           }}
           className={`flex items-center justify-between px-3 py-1.5 rounded-xl group/slot relative transition ${
-            dragOverTarget === `${match.id}-B`
+            dragOverTarget === `${match.id}-B` && draggedSlot?.roundIndex === match.roundIndex
               ? 'bg-gold-500/40 border-2 border-gold-400 scale-[1.02] shadow-[0_0_12px_rgba(234,179,8,0.5)]'
               : match.winnerId === match.participantB?.participantId
               ? 'bg-gold-500 text-coffee-950 font-black shadow-md'
@@ -1020,11 +1126,24 @@ export default function TvBracketPage() {
           <div className="col-span-4 flex items-stretch gap-3 h-full">
             {/* Column 1: Babak Perempat Final Kiri */}
             <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
-              <div className="text-center bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
-                <div>{roundBabak3?.name ? `${roundBabak3.name} (KIRI)` : 'BABAK KIRI'}</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">
-                  {b3LeftIds.length > 0 ? `${b3LeftIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
+              <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2.5 rounded-xl mb-2 font-black text-xs md:text-sm shadow flex items-center justify-between gap-1">
+                <div className="text-left truncate">
+                  <div>{roundBabak3?.name ? `${roundBabak3.name} (KIRI)` : 'BABAK KIRI'}</div>
+                  <div className="text-[10px] text-coffee-950/80 font-bold">
+                    {b3LeftIds.length > 0 ? `${b3LeftIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
+                  </div>
                 </div>
+                {qfRoundIndex >= 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleReshuffleRound(qfRoundIndex)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-coffee-950 text-gold-300 hover:bg-black hover:text-gold-200 border border-gold-400 shadow transition active:scale-95 shrink-0"
+                    title="Kocok Ulang Perempat Final"
+                  >
+                    <Shuffle className="w-3 h-3 text-gold-400" />
+                    <span>Kocok</span>
+                  </button>
+                )}
               </div>
               <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {b3LeftIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
@@ -1295,11 +1414,24 @@ export default function TvBracketPage() {
 
             {/* Column 4: Babak Perempat Final Kanan */}
             <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
-              <div className="text-center bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
-                <div>{roundBabak3?.name ? `${roundBabak3.name} (KANAN)` : 'BABAK KANAN'}</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">
-                  {b3RightIds.length > 0 ? `${b3RightIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
+              <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2.5 rounded-xl mb-2 font-black text-xs md:text-sm shadow flex items-center justify-between gap-1">
+                <div className="text-left truncate">
+                  <div>{roundBabak3?.name ? `${roundBabak3.name} (KANAN)` : 'BABAK KANAN'}</div>
+                  <div className="text-[10px] text-coffee-950/80 font-bold">
+                    {b3RightIds.length > 0 ? `${b3RightIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
+                  </div>
                 </div>
+                {qfRoundIndex >= 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleReshuffleRound(qfRoundIndex)}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-coffee-950 text-gold-300 hover:bg-black hover:text-gold-200 border border-gold-400 shadow transition active:scale-95 shrink-0"
+                    title="Kocok Ulang Perempat Final"
+                  >
+                    <Shuffle className="w-3 h-3 text-gold-400" />
+                    <span>Kocok</span>
+                  </button>
+                )}
               </div>
               <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {b3RightIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
@@ -1327,51 +1459,64 @@ export default function TvBracketPage() {
                 className="flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 overflow-hidden shadow-xl"
               >
                 {/* Round Header */}
-                <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-coffee-950 uppercase tracking-wider shadow py-2 px-2.5 mb-2 rounded-xl flex items-center justify-between">
-                  <div className="truncate text-left">
+                <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-coffee-950 uppercase tracking-wider shadow py-2 px-2.5 mb-2 rounded-xl flex items-center justify-between gap-1.5">
+                  <div className="truncate text-left flex-1 min-w-0">
                     <div className="truncate text-xs md:text-sm font-black">{round.name}</div>
                     <div className="truncate mt-0.5 text-[10px] md:text-[11px] font-bold text-coffee-950/80">
                       {round.subTitle ? round.subTitle.replace(/\s*\+\s*1\s*BYPASS/gi, '') : `${matchCount} BATTLE`}
                     </div>
                   </div>
 
-                  {/* Tombol di luar box battle untuk menambahkan pemain (khusus babak 1 atau saat sisa ganjil) */}
-                  {round.index === 0 && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Tombol Kocok Ulang / Reshuffle Babak */}
                     <button
                       type="button"
-                      disabled={!canAddParticipantInRound(round.index)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Find first open slot or open slot in pending match
-                        const openMatch = matchIds
-                          .map((id) => tournament.matches[id])
-                          .find((m) => m && (!m.participantA?.participantId || (!m.participantB?.participantId && !m.participantB?.isBye)));
-                        if (openMatch) {
-                          const targetSlot = !openMatch.participantA?.participantId ? 'A' : 'B';
-                          handleOpenSlotAssign(openMatch, targetSlot);
-                        } else {
-                          // If all slots are filled, open slot modal on last match or prompt to edit
-                          const lastM = tournament.matches[matchIds[matchIds.length - 1]];
-                          if (lastM) {
-                            handleOpenSlotAssign(lastM, 'B');
-                          }
-                        }
-                      }}
-                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-black shadow transition active:scale-95 ${
-                        canAddParticipantInRound(round.index)
-                          ? 'bg-coffee-950 text-gold-300 hover:bg-black border border-gold-400 cursor-pointer animate-pulse'
-                          : 'bg-coffee-950/40 text-coffee-500/60 border border-coffee-800/40 cursor-not-allowed pointer-events-none opacity-50'
-                      }`}
-                      title={
-                        canAddParticipantInRound(round.index)
-                          ? 'Tambah pemain baru ke babak 1'
-                          : 'Babak 1 sudah selesai (dinonaktifkan agar tidak mengganggu babak berikutnya)'
-                      }
+                      onClick={() => handleReshuffleRound(round.index)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] md:text-xs font-black bg-coffee-950 text-gold-300 hover:bg-black hover:text-gold-200 border border-gold-400 shadow transition active:scale-95 cursor-pointer"
+                      title={`Kocok Ulang / Reshuffle Lawan pada ${round.name}`}
                     >
-                      <Plus className="w-3 h-3" />
-                      <span>+ Tambah Pemain</span>
+                      <Shuffle className="w-3 h-3 text-gold-400" />
+                      <span>Kocok</span>
                     </button>
-                  )}
+
+                    {/* Tombol di luar box battle untuk menambahkan pemain (khusus babak 1 atau saat sisa ganjil) */}
+                    {round.index === 0 && (
+                      <button
+                        type="button"
+                        disabled={!canAddParticipantInRound(round.index)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Find first open slot or open slot in pending match
+                          const openMatch = matchIds
+                            .map((id) => tournament.matches[id])
+                            .find((m) => m && (!m.participantA?.participantId || (!m.participantB?.participantId && !m.participantB?.isBye)));
+                          if (openMatch) {
+                            const targetSlot = !openMatch.participantA?.participantId ? 'A' : 'B';
+                            handleOpenSlotAssign(openMatch, targetSlot);
+                          } else {
+                            // If all slots are filled, open slot modal on last match or prompt to edit
+                            const lastM = tournament.matches[matchIds[matchIds.length - 1]];
+                            if (lastM) {
+                              handleOpenSlotAssign(lastM, 'B');
+                            }
+                          }
+                        }}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-black shadow transition active:scale-95 ${
+                          canAddParticipantInRound(round.index)
+                            ? 'bg-coffee-950 text-gold-300 hover:bg-black border border-gold-400 cursor-pointer animate-pulse'
+                            : 'bg-coffee-950/40 text-coffee-500/60 border border-coffee-800/40 cursor-not-allowed pointer-events-none opacity-50'
+                        }`}
+                        title={
+                          canAddParticipantInRound(round.index)
+                            ? 'Tambah pemain baru ke babak 1'
+                            : 'Babak 1 sudah selesai (dinonaktifkan agar tidak mengganggu babak berikutnya)'
+                        }
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>+ Tambah</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Match Cards List */}

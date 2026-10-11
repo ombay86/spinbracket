@@ -16,6 +16,8 @@ import {
   ArrowLeft,
   Camera,
   Sparkles,
+  Edit3,
+  X,
 } from 'lucide-react';
 import { clientDb, Tournament, Participant } from '@/lib/client-db';
 import { createDynamicBracket } from '@/lib/bracket-generator';
@@ -58,6 +60,12 @@ export default function ParticipantSetupPage() {
   const [newName, setNewName] = useState('');
   const [newAffiliation, setNewAffiliation] = useState('');
   const [newPhoto, setNewPhoto] = useState('');
+
+  // Edit participant state
+  const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAffiliation, setEditAffiliation] = useState('');
+  const [editPhoto, setEditPhoto] = useState('');
 
   const fetchTournament = () => {
     try {
@@ -139,6 +147,90 @@ export default function ParticipantSetupPage() {
   // Delete participant
   const handleDeleteParticipant = (id: string) => {
     setParticipants(participants.filter((p) => p.id !== id));
+  };
+
+  // Open edit participant modal
+  const handleOpenEdit = (p: Participant) => {
+    setEditingParticipant(p);
+    setEditName(p.name);
+    setEditAffiliation(p.affiliation || '');
+    setEditPhoto(p.photo || '');
+  };
+
+  // Handle edit photo upload
+  const handleEditPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditPhoto(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Save edited participant
+  const handleSaveEdit = () => {
+    if (!editingParticipant) return;
+    if (!editName.trim()) {
+      showAlert.warning('Nama Wajib Diisi', 'Nama peserta/brewer tidak boleh kosong.');
+      return;
+    }
+
+    const updatedName = editName.trim();
+    const updatedAffiliation = editAffiliation.trim();
+    const updatedPhoto = editPhoto;
+
+    setParticipants((prev) =>
+      prev.map((p) =>
+        p.id === editingParticipant.id
+          ? {
+              ...p,
+              name: updatedName,
+              affiliation: updatedAffiliation,
+              photo: updatedPhoto,
+            }
+          : p
+      )
+    );
+
+    // If matches already exist in tournament, update participant details in matches as well
+    if (tournament) {
+      const updatedMatches = { ...tournament.matches };
+      let hasMatchChange = false;
+      Object.values(updatedMatches).forEach((m) => {
+        if (m.participantA?.participantId === editingParticipant.id) {
+          m.participantA = {
+            ...m.participantA,
+            name: updatedName,
+            affiliation: updatedAffiliation,
+            photo: updatedPhoto,
+          };
+          hasMatchChange = true;
+        }
+        if (m.participantB?.participantId === editingParticipant.id) {
+          m.participantB = {
+            ...m.participantB,
+            name: updatedName,
+            affiliation: updatedAffiliation,
+            photo: updatedPhoto,
+          };
+          hasMatchChange = true;
+        }
+      });
+
+      if (hasMatchChange) {
+        const updatedT: Tournament = {
+          ...tournament,
+          matches: updatedMatches,
+          updatedAt: new Date().toISOString(),
+        };
+        clientDb.saveTournament(updatedT);
+        setTournament(updatedT);
+      }
+    }
+
+    showAlert.success('Peserta Diperbarui', `Data "${updatedName}" berhasil diperbarui.`, 1800);
+    setEditingParticipant(null);
   };
 
   // Clear all participants
@@ -468,19 +560,136 @@ export default function ParticipantSetupPage() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => handleDeleteParticipant(p.id)}
-                    className="p-1.5 text-coffee-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition"
-                    title="Hapus Peserta"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(p)}
+                      className="p-1.5 text-coffee-400 hover:text-gold-400 hover:bg-gold-500/10 rounded-lg transition"
+                      title="Edit Data Peserta"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteParticipant(p.id)}
+                      className="p-1.5 text-coffee-500 hover:text-red-400 hover:bg-red-950/40 rounded-lg transition"
+                      title="Hapus Peserta"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* Edit Participant Modal */}
+      {editingParticipant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-coffee-900 border-2 border-gold-500/50 rounded-3xl p-6 shadow-2xl shadow-gold-500/10 text-white">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-coffee-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-gold-500/20 text-gold-400 border border-gold-500/40">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <h3 className="text-lg font-black text-white">Edit Data Peserta</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingParticipant(null)}
+                className="p-1.5 text-coffee-400 hover:text-white rounded-lg hover:bg-coffee-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Photo section */}
+              <div className="flex items-center gap-4 bg-coffee-950/60 p-3 rounded-2xl border border-coffee-800">
+                <div className="w-16 h-16 rounded-xl bg-coffee-900 border border-coffee-700 overflow-hidden flex items-center justify-center shrink-0 relative">
+                  {editPhoto ? (
+                    <img src={editPhoto} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Coffee className="w-7 h-7 text-coffee-500" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-coffee-800 hover:bg-coffee-700 text-gold-300 text-xs font-bold border border-coffee-700 cursor-pointer transition w-fit">
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Ganti Foto</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleEditPhotoUpload}
+                    />
+                  </label>
+                  {editPhoto && (
+                    <button
+                      type="button"
+                      onClick={() => setEditPhoto('')}
+                      className="text-[11px] text-red-400 hover:text-red-300 text-left w-fit"
+                    >
+                      Hapus Foto
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div>
+                <label className="block text-xs font-bold text-coffee-300 uppercase tracking-wider mb-1.5">
+                  Nama Peserta / Brewer *
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                  placeholder="Contoh: Dimas Aditya"
+                  className="w-full bg-coffee-950 border border-coffee-700 focus:border-gold-400 rounded-xl px-4 py-2.5 text-white placeholder-coffee-600 focus:outline-none text-sm"
+                />
+              </div>
+
+              {/* Affiliation */}
+              <div>
+                <label className="block text-xs font-bold text-coffee-300 uppercase tracking-wider mb-1.5">
+                  Asal Coffeeshop / Kota
+                </label>
+                <input
+                  type="text"
+                  value={editAffiliation}
+                  onChange={(e) => setEditAffiliation(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                  placeholder="Contoh: Anomali Coffee - Jakarta"
+                  className="w-full bg-coffee-950 border border-coffee-700 focus:border-gold-400 rounded-xl px-4 py-2.5 text-white placeholder-coffee-600 focus:outline-none text-sm"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2.5 mt-6 pt-4 border-t border-coffee-800">
+              <button
+                type="button"
+                onClick={() => setEditingParticipant(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-coffee-300 hover:text-white hover:bg-coffee-800 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                className="px-5 py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-coffee-950 font-black text-xs shadow transition flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>Simpan Perubahan</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
