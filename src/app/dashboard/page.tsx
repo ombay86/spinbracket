@@ -436,13 +436,22 @@ export default function DashboardPage() {
                       Buka Layar TV (Bagan)
                     </Link>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Link
+                        href={`/tournament/${t.id}/results`}
+                        className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gold-500/15 hover:bg-gold-500/25 text-gold-300 border border-gold-500/40 text-xs font-bold transition"
+                        title="Hasil Akhir & Podium Piala"
+                      >
+                        <Trophy className="w-3.5 h-3.5 text-gold-400" />
+                        <span>Hasil Akhir</span>
+                      </Link>
+
                       <Link
                         href={`/tournament/${t.id}/wheel`}
                         className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-coffee-800 hover:bg-coffee-700 text-gold-300 border border-coffee-700 text-xs font-bold transition"
                       >
                         <Shuffle className="w-3.5 h-3.5" />
-                        Undi Spinwheel
+                        Spinwheel
                       </Link>
 
                       <Link
@@ -450,7 +459,7 @@ export default function DashboardPage() {
                         className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-coffee-800 hover:bg-coffee-700 text-coffee-200 border border-coffee-700 text-xs font-bold transition"
                       >
                         <Users className="w-3.5 h-3.5" />
-                        Atur Peserta
+                        Peserta
                       </Link>
                     </div>
                   </div>

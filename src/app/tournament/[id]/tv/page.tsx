@@ -1192,15 +1192,15 @@ export default function TvBracketPage() {
             </button>
           )}
 
-          {tournament.winners?.first && (
-            <button
-              onClick={handleOpenGrandFinale}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 text-coffee-950 font-black text-xs shadow-[0_0_15px_rgba(234,179,8,0.5)] active:scale-95 transition"
-            >
-              <Crown className="w-4 h-4" />
-              PODIUM JUARA
-            </button>
-          )}
+          {/* Tombol Halaman Hasil Akhir & Podium Pemenang */}
+          <Link
+            href={`/tournament/${tournamentId}/results`}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-400 hover:from-yellow-400 hover:to-amber-300 text-coffee-950 font-black text-xs shadow-[0_0_18px_rgba(234,179,8,0.5)] active:scale-95 transition"
+            title="Buka Halaman Khusus Hasil Akhir & Piala Juara"
+          >
+            <Crown className="w-4 h-4 text-coffee-950" />
+            <span>HASIL AKHIR & PIALA</span>
+          </Link>
 
           <Link
             href={`/tournament/${tournamentId}/wheel`}
