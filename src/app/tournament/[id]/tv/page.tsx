@@ -121,6 +121,19 @@ export default function TvBracketPage() {
   const [customPhoto, setCustomPhoto] = useState('');
   const [selectedExistingId, setSelectedExistingId] = useState('');
 
+  // 3-Way Final (Babak Final 3 Peserta) State
+  const [show3WayModal, setShow3WayModal] = useState(false);
+  const [show3WaySlotAssignModal, setShow3WaySlotAssignModal] = useState<null | 'red' | 'yellow' | 'blue'>(null);
+  const [slotAssign3WayCustomName, setSlotAssign3WayCustomName] = useState('');
+  const [slotAssign3WayCustomAffiliation, setSlotAssign3WayCustomAffiliation] = useState('');
+  const [slotAssign3WayCustomPhoto, setSlotAssign3WayCustomPhoto] = useState('');
+  const [slotAssign3WayExistingId, setSlotAssign3WayExistingId] = useState('');
+  const [tempRanks3Way, setTempRanks3Way] = useState<{
+    firstId: string | null;
+    secondId: string | null;
+    thirdId: string | null;
+  }>({ firstId: null, secondId: null, thirdId: null });
+
   // Drag and Drop Player Reshuffling in Bracket (strictly within the same round/column)
   const [draggedSlot, setDraggedSlot] = useState<{
     matchId: string;
@@ -825,6 +838,296 @@ export default function TvBracketPage() {
     return p?.photo || undefined;
   };
 
+  // 3-WAY FINAL (FINAL 3 PESERTA) HANDLERS & HELPERS
+  const is3WayEnabled = !!tournament?.final3Way?.enabled;
+
+  // Derive initial 3 finalists from Semifinal 1, Semifinal 2, and Bronze/Loser
+  const getAutoCandidatesFor3Way = () => {
+    if (!tournament) return { red: null, yellow: null, blue: null };
+
+    // 1. Semi 1 Winner (or Participant A)
+    let redP: Participant | null = null;
+    if (semiLeftId && tournament.matches[semiLeftId]) {
+      const m1 = tournament.matches[semiLeftId];
+      const winSlot = m1.winnerId
+        ? (m1.winnerId === m1.participantA?.participantId ? m1.participantA : m1.participantB)
+        : m1.participantA;
+      if (winSlot?.participantId) {
+        redP = {
+          id: winSlot.participantId,
+          name: winSlot.name || 'Finalis Merah',
+          affiliation: winSlot.affiliation || '',
+          photo: getParticipantPhoto(winSlot.participantId, winSlot.photo) || '',
+        };
+      }
+    }
+
+    // 2. Semi 2 Winner (or Participant B)
+    let blueP: Participant | null = null;
+    if (semiRightId && tournament.matches[semiRightId]) {
+      const m2 = tournament.matches[semiRightId];
+      const winSlot = m2.winnerId
+        ? (m2.winnerId === m2.participantA?.participantId ? m2.participantA : m2.participantB)
+        : m2.participantA;
+      if (winSlot?.participantId) {
+        blueP = {
+          id: winSlot.participantId,
+          name: winSlot.name || 'Finalis Biru',
+          affiliation: winSlot.affiliation || '',
+          photo: getParticipantPhoto(winSlot.participantId, winSlot.photo) || '',
+        };
+      }
+    }
+
+    // 3. 3rd Contender: Winner of thirdPlaceMatch OR loser of Semi 1 / Semi 2
+    let yellowP: Participant | null = null;
+    if (thirdPlaceMatch) {
+      const tpWinner = thirdPlaceMatch.winnerId
+        ? (thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId ? thirdPlaceMatch.participantA : thirdPlaceMatch.participantB)
+        : (thirdPlaceMatch.participantB?.participantId ? thirdPlaceMatch.participantB : thirdPlaceMatch.participantA);
+      if (tpWinner?.participantId) {
+        yellowP = {
+          id: tpWinner.participantId,
+          name: tpWinner.name || 'Finalis Kuning',
+          affiliation: tpWinner.affiliation || '',
+          photo: getParticipantPhoto(tpWinner.participantId, tpWinner.photo) || '',
+        };
+      }
+    }
+
+    // Fallback: If yellow still empty, pick any 3rd unique participant from completed semifinal matches
+    if (!yellowP && tournament.participants) {
+      const usedIds = new Set([redP?.id, blueP?.id].filter(Boolean));
+      const remaining = tournament.participants.find((p) => !usedIds.has(p.id));
+      if (remaining) yellowP = remaining;
+    }
+
+    return { red: redP, yellow: yellowP, blue: blueP };
+  };
+
+  const handleToggle3WayFinal = async () => {
+    if (!tournament) return;
+    const currentEnabled = !!tournament.final3Way?.enabled;
+
+    if (!currentEnabled) {
+      // Activating 3-Way Final
+      const autoCandidates = getAutoCandidatesFor3Way();
+      const new3Way = {
+        enabled: true,
+        slots: {
+          red: tournament.final3Way?.slots?.red || autoCandidates.red,
+          yellow: tournament.final3Way?.slots?.yellow || autoCandidates.yellow,
+          blue: tournament.final3Way?.slots?.blue || autoCandidates.blue,
+        },
+        ranks: tournament.final3Way?.ranks || {
+          firstId: null,
+          secondId: null,
+          thirdId: null,
+        },
+      };
+
+      const updated = {
+        ...tournament,
+        final3Way: new3Way,
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updated);
+      setTournament(updated);
+      showAlert.success('Mode Final 3 Peserta Aktif!', 'Panggung Championship Stage kini disesuaikan untuk 3 besar (Sudut Merah, Emas/Kuning, Biru).', 2000);
+    } else {
+      // Reverting to Standard 2-way Grand Final
+      const confirmed = await showAlert.confirm({
+        title: 'Kembali ke Final Standar (2 Peserta)?',
+        text: 'Championship Stage akan kembali menampilkan format Grand Final (Juara 1 & 2) dan Perebutan Juara 3.',
+        confirmText: 'Ya, Kembalikan ke 2 Peserta',
+        cancelText: 'Batal',
+      });
+      if (!confirmed) return;
+
+      const updated = {
+        ...tournament,
+        final3Way: {
+          ...(tournament.final3Way || { slots: {} }),
+          enabled: false,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updated);
+      setTournament(updated);
+      showAlert.info('Format Standar Aktif', 'Format pertandingan kembali ke 2 peserta.');
+    }
+  };
+
+  const handleOpen3WaySlotModal = (slotKey: 'red' | 'yellow' | 'blue') => {
+    if (!tournament) return;
+    const currentParticipant = tournament.final3Way?.slots?.[slotKey];
+    setSlotAssign3WayCustomName(currentParticipant?.name || '');
+    setSlotAssign3WayCustomAffiliation(currentParticipant?.affiliation || '');
+    setSlotAssign3WayCustomPhoto(currentParticipant?.photo || '');
+    setSlotAssign3WayExistingId(currentParticipant?.id || '');
+    setShow3WaySlotAssignModal(slotKey);
+  };
+
+  const handleSave3WaySlotParticipant = () => {
+    if (!tournament || !show3WaySlotAssignModal) return;
+    const slotKey = show3WaySlotAssignModal;
+    let participantId = slotAssign3WayExistingId;
+    const participantName = slotAssign3WayCustomName.trim();
+    const participantAff = slotAssign3WayCustomAffiliation.trim();
+    let participantPhoto = slotAssign3WayCustomPhoto.trim();
+
+    if (slotAssign3WayExistingId && slotAssign3WayExistingId !== 'NEW') {
+      const existing = tournament.participants.find((p) => p.id === slotAssign3WayExistingId);
+      if (existing) {
+        participantPhoto = existing.photo || participantPhoto;
+      }
+    }
+
+    if (!participantName) {
+      showAlert.warning('Nama Peserta Kosong', 'Silakan masukkan nama peserta.');
+      return;
+    }
+
+    const updatedParticipants = [...(tournament.participants || [])];
+    if (!participantId || participantId === 'NEW') {
+      participantId = `p_3way_${Date.now()}`;
+      updatedParticipants.push({
+        id: participantId,
+        name: participantName,
+        affiliation: participantAff,
+        photo: participantPhoto,
+        seed: updatedParticipants.length + 1,
+      });
+    }
+
+    const newParticipantObj: Participant = {
+      id: participantId,
+      name: participantName,
+      affiliation: participantAff,
+      photo: participantPhoto,
+    };
+
+    const updated = {
+      ...tournament,
+      participants: updatedParticipants,
+      final3Way: {
+        ...(tournament.final3Way || { enabled: true, ranks: {} }),
+        enabled: true,
+        slots: {
+          ...(tournament.final3Way?.slots || {}),
+          [slotKey]: newParticipantObj,
+        },
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    clientDb.saveTournament(updated);
+    setTournament(updated);
+    setShow3WaySlotAssignModal(null);
+    showAlert.success('Slot Disimpan!', `Peserta untuk Slot ${slotKey.toUpperCase()} berhasil diperbarui.`, 1500);
+  };
+
+  const handleOpen3WayAdjudication = () => {
+    if (!tournament) return;
+    const slots = tournament.final3Way?.slots || {};
+    if (!slots.red?.id || !slots.yellow?.id || !slots.blue?.id) {
+      showAlert.warning('Slot Belum Lengkap', 'Pastikan ketiga slot finalis (Merah, Kuning, Biru) sudah terisi sebelum menentukan juara.');
+      return;
+    }
+    const currentRanks = tournament.final3Way?.ranks || {};
+    setTempRanks3Way({
+      firstId: currentRanks.firstId || tournament.winners?.first?.id || null,
+      secondId: currentRanks.secondId || tournament.winners?.second?.id || null,
+      thirdId: currentRanks.thirdId || tournament.winners?.third?.id || null,
+    });
+    setShow3WayModal(true);
+  };
+
+  const handleAssign3WayRank = (participantId: string, rank: 1 | 2 | 3) => {
+    setTempRanks3Way((prev) => {
+      const next = { ...prev };
+      // If already assigned to this rank, remove
+      if (rank === 1 && next.firstId === participantId) next.firstId = null;
+      else if (rank === 2 && next.secondId === participantId) next.secondId = null;
+      else if (rank === 3 && next.thirdId === participantId) next.thirdId = null;
+      else {
+        // Clear wherever this participant was
+        if (next.firstId === participantId) next.firstId = null;
+        if (next.secondId === participantId) next.secondId = null;
+        if (next.thirdId === participantId) next.thirdId = null;
+
+        if (rank === 1) next.firstId = participantId;
+        if (rank === 2) next.secondId = participantId;
+        if (rank === 3) next.thirdId = participantId;
+      }
+      return next;
+    });
+  };
+
+  const handleSave3WayRanks = async () => {
+    if (!tournament) return;
+    if (!tempRanks3Way.firstId) {
+      showAlert.warning('Juara 1 Belum Ditentukan', 'Silakan tentukan minimal Juara 1.');
+      return;
+    }
+
+    const slots = tournament.final3Way?.slots || {};
+    const allFinalists = [slots.red, slots.yellow, slots.blue].filter(Boolean) as Participant[];
+    const firstP = allFinalists.find((p) => p.id === tempRanks3Way.firstId) || null;
+    const secondP = allFinalists.find((p) => p.id === tempRanks3Way.secondId) || null;
+    const thirdP = allFinalists.find((p) => p.id === tempRanks3Way.thirdId) || null;
+
+    const confirmed = await showAlert.confirm({
+      title: 'Simpan Hasil Final 3 Besar?',
+      html: `
+        <div style="text-align: left; font-size: 13px; line-height: 1.6; background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); padding: 14px 16px; border-radius: 14px; margin-bottom: 10px;">
+          <p style="margin: 0 0 6px 0; color: #fde047; font-weight: 700;">🏆 <strong>Juara 1:</strong> ${firstP?.name || '-'}</p>
+          <p style="margin: 0 0 6px 0; color: #cbd5e1; font-weight: 700;">🥈 <strong>Juara 2:</strong> ${secondP?.name || '-'}</p>
+          <p style="margin: 0 0 0 0; color: #f59e0b; font-weight: 700;">🥉 <strong>Juara 3:</strong> ${thirdP?.name || '-'}</p>
+        </div>
+      `,
+      confirmText: '🏆 Ya, Sahkan Juara Turnamen',
+      cancelText: 'Batal',
+      icon: 'success',
+    });
+    if (!confirmed) return;
+
+    const updated = {
+      ...tournament,
+      final3Way: {
+        ...(tournament.final3Way || { enabled: true, slots: {} }),
+        enabled: true,
+        ranks: { ...tempRanks3Way },
+      },
+      winners: {
+        first: firstP,
+        second: secondP,
+        third: thirdP,
+      },
+      status: 'completed' as const,
+      updatedAt: new Date().toISOString(),
+    };
+
+    clientDb.saveTournament(updated);
+    setTournament(updated);
+    setShow3WayModal(false);
+
+    // Trigger celebration
+    if (firstP) {
+      setCelebrationData({
+        isOpen: true,
+        name: firstP.name,
+        affiliation: firstP.affiliation,
+        photo: firstP.photo,
+        matchLabel: 'BABAK FINAL 3 BESAR',
+        nextStageLabel: 'CHAMPION JUARA 1',
+      });
+      setTimeout(() => {
+        setShowGrandChampionModal(true);
+      }, 3200);
+    }
+  };
+
   // Helper to dynamically calculate consecutive Battle number for any match (including previously labelled bypass matches)
   const getMatchDisplayLabel = (match: Match): string => {
     if (!tournament) return match.label;
@@ -1308,15 +1611,259 @@ export default function TvBracketPage() {
                 <span className="text-2xl md:text-3xl text-gold-400/60 select-none scale-x-[-1]">🌿</span>
               </div>
 
-              <div className="mt-0.5 text-center">
+              <div className="mt-0.5 text-center flex flex-col items-center gap-1">
                 <div className="inline-block px-3 py-0.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 text-coffee-950 font-black text-[10px] md:text-[11px] tracking-widest uppercase shadow">
                   CHAMPIONSHIP STAGE • ROAD TO THE THRONE
                 </div>
+
+                {/* Switcher: Mode Final Standar vs Final 3 Peserta Langsung */}
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={handleToggle3WayFinal}
+                    className={`mt-0.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition border shadow-md flex items-center gap-1.5 active:scale-95 ${
+                      is3WayEnabled
+                        ? 'bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-coffee-950 border-yellow-200 shadow-[0_0_15px_rgba(234,179,8,0.6)] animate-pulse'
+                        : 'bg-[#1e130c] hover:bg-gold-500/20 text-gold-300 border-gold-500/40 hover:border-gold-300'
+                    }`}
+                    title={is3WayEnabled ? 'Klik untuk kembali ke Final 2 Peserta' : 'Klik untuk mengaktifkan Final 3 Peserta Langsung'}
+                  >
+                    <Crown className="w-3 h-3 text-coffee-950/80" />
+                    <span>{is3WayEnabled ? '⚡ MODE FINAL: 3 PESERTA (AKTIF)' : '➕ UBAH JADI FINAL 3 PESERTA'}</span>
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* The Final Battles: Grand Final & Perebutan Juara 3 */}
+            {/* The Final Battles: 3-Way Final OR Standard Grand Final & Perebutan Juara 3 */}
             <div className="relative z-10 flex-1 min-h-0 flex flex-col justify-around gap-2 my-1">
+              {is3WayEnabled ? (
+                /* =========================================================================
+                    LAYOUT KHUSUS: FINAL 3 PESERTA LANGSUNG (TRI-BATTLE ARENA)
+                ========================================================================= */
+                (() => {
+                  const slots = tournament.final3Way?.slots || {};
+                  const ranks = tournament.final3Way?.ranks || {};
+                  const isDecided = !!ranks.firstId;
+
+                  const redFinalist = slots.red;
+                  const yellowFinalist = slots.yellow;
+                  const blueFinalist = slots.blue;
+
+                  return (
+                    <div className="flex-1 min-h-0 flex flex-col justify-between p-2 md:p-3 rounded-2xl bg-gradient-to-b from-[#2a170c] via-[#1a0e07] to-[#140b05] border-2 border-gold-500 shadow-[0_0_35px_rgba(234,179,8,0.4)]">
+                      {/* Top Header Tri-Battle */}
+                      <div className="flex items-center justify-between pb-1.5 border-b border-gold-500/30 shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <Crown className="w-4 h-4 text-gold-400 animate-bounce" />
+                          <span className="text-xs md:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-gold-400 to-amber-400 uppercase">
+                            GRAND FINAL • 3 BESAR SEKALIGUS
+                          </span>
+                        </div>
+                        {isDecided ? (
+                          <span className="text-[9px] md:text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-black shadow">
+                            HASIL DISAHKAN
+                          </span>
+                        ) : (
+                          <span className="text-[9px] md:text-[10px] font-black px-2 py-0.5 rounded bg-amber-500 text-coffee-950 shadow animate-pulse">
+                            3-WAY BATTLE LIVE
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 3 Contender Slots: Red (Kiri) - Yellow/Gold (Tengah) - Blue (Kanan) */}
+                      <div className="grid grid-cols-3 gap-2 my-1.5 flex-1 min-h-0 items-stretch">
+                        {/* 1. FINALIS MERAH */}
+                        <div className="flex flex-col justify-between items-center p-2 rounded-xl bg-gradient-to-b from-red-950/70 to-[#180a08] border-2 border-red-500/80 shadow-lg text-center relative overflow-hidden group">
+                          <div className="w-full flex items-center justify-between mb-1">
+                            <span className="px-1.5 py-0.5 rounded bg-red-600 text-white font-black text-[8px] uppercase">
+                              Merah
+                            </span>
+                            {!isReadOnly && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpen3WaySlotModal('red')}
+                                className="text-red-300 hover:text-white p-0.5 rounded hover:bg-red-800/50 transition"
+                                title="Ganti Peserta Sudut Merah"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="relative mb-1">
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/60 border-2 border-red-400 overflow-hidden flex items-center justify-center shadow">
+                              {redFinalist?.photo ? (
+                                <img src={redFinalist.photo} alt={redFinalist.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xl">☕</span>
+                              )}
+                            </div>
+                            {ranks.firstId === redFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-yellow-400 text-coffee-950 text-[8px] font-black shadow border border-white">
+                                🏆 1st
+                              </span>
+                            )}
+                            {ranks.secondId === redFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-950 text-[8px] font-black shadow border border-white">
+                                🥈 2nd
+                              </span>
+                            )}
+                            {ranks.thirdId === redFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[8px] font-black shadow border border-white">
+                                🥉 3rd
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="w-full">
+                            <div className="text-xs md:text-sm font-black text-white truncate max-w-full">
+                              {redFinalist?.name || 'Slot Merah'}
+                            </div>
+                            <div className="text-[9px] text-coffee-300 truncate max-w-full">
+                              {redFinalist?.affiliation || '-'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. FINALIS KUNING / EMAS (Tengah) */}
+                        <div className="flex flex-col justify-between items-center p-2 rounded-xl bg-gradient-to-b from-amber-950/80 to-[#1c1208] border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] text-center relative overflow-hidden group">
+                          <div className="w-full flex items-center justify-between mb-1">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500 text-coffee-950 font-black text-[8px] uppercase">
+                              Kuning
+                            </span>
+                            {!isReadOnly && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpen3WaySlotModal('yellow')}
+                                className="text-amber-300 hover:text-white p-0.5 rounded hover:bg-amber-800/50 transition"
+                                title="Ganti Peserta Sudut Kuning"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="relative mb-1">
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/60 border-2 border-amber-300 overflow-hidden flex items-center justify-center shadow">
+                              {yellowFinalist?.photo ? (
+                                <img src={yellowFinalist.photo} alt={yellowFinalist.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xl">☕</span>
+                              )}
+                            </div>
+                            {ranks.firstId === yellowFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-yellow-400 text-coffee-950 text-[8px] font-black shadow border border-white">
+                                🏆 1st
+                              </span>
+                            )}
+                            {ranks.secondId === yellowFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-950 text-[8px] font-black shadow border border-white">
+                                🥈 2nd
+                              </span>
+                            )}
+                            {ranks.thirdId === yellowFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[8px] font-black shadow border border-white">
+                                🥉 3rd
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="w-full">
+                            <div className="text-xs md:text-sm font-black text-amber-200 truncate max-w-full">
+                              {yellowFinalist?.name || 'Slot Kuning'}
+                            </div>
+                            <div className="text-[9px] text-coffee-300 truncate max-w-full">
+                              {yellowFinalist?.affiliation || '-'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 3. FINALIS BIRU */}
+                        <div className="flex flex-col justify-between items-center p-2 rounded-xl bg-gradient-to-b from-blue-950/70 to-[#080f1a] border-2 border-blue-500/80 shadow-lg text-center relative overflow-hidden group">
+                          <div className="w-full flex items-center justify-between mb-1">
+                            <span className="px-1.5 py-0.5 rounded bg-blue-600 text-white font-black text-[8px] uppercase">
+                              Biru
+                            </span>
+                            {!isReadOnly && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpen3WaySlotModal('blue')}
+                                className="text-blue-300 hover:text-white p-0.5 rounded hover:bg-blue-800/50 transition"
+                                title="Ganti Peserta Sudut Biru"
+                              >
+                                <Edit3 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="relative mb-1">
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-black/60 border-2 border-blue-400 overflow-hidden flex items-center justify-center shadow">
+                              {blueFinalist?.photo ? (
+                                <img src={blueFinalist.photo} alt={blueFinalist.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xl">☕</span>
+                              )}
+                            </div>
+                            {ranks.firstId === blueFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-yellow-400 text-coffee-950 text-[8px] font-black shadow border border-white">
+                                🏆 1st
+                              </span>
+                            )}
+                            {ranks.secondId === blueFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-950 text-[8px] font-black shadow border border-white">
+                                🥈 2nd
+                              </span>
+                            )}
+                            {ranks.thirdId === blueFinalist?.id && (
+                              <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-amber-600 text-white text-[8px] font-black shadow border border-white">
+                                🥉 3rd
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="w-full">
+                            <div className="text-xs md:text-sm font-black text-white truncate max-w-full">
+                              {blueFinalist?.name || 'Slot Biru'}
+                            </div>
+                            <div className="text-[9px] text-coffee-300 truncate max-w-full">
+                              {blueFinalist?.affiliation || '-'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tombol Tentukan Urutan Juara 1, 2, 3 */}
+                      <div className="pt-1.5 border-t border-gold-500/30 flex items-center justify-between gap-2 shrink-0">
+                        <div className="text-[10px] text-coffee-300 font-bold truncate">
+                          {isDecided ? (
+                            <span className="text-emerald-400 flex items-center gap-1 font-black">
+                              <Check className="w-3.5 h-3.5" /> Juara 1: {tournament.winners?.first?.name}
+                            </span>
+                          ) : (
+                            <span>3 Brewer diadu serentak untuk Juara 1, 2, dan 3</span>
+                          )}
+                        </div>
+
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={handleOpen3WayAdjudication}
+                            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-coffee-950 font-black text-xs shadow-md transition active:scale-95 flex items-center gap-1 shrink-0"
+                          >
+                            <Trophy className="w-3.5 h-3.5" />
+                            <span>{isDecided ? 'Ubah Urutan Juara' : 'Tentukan Urutan Juara'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                /* =========================================================================
+                    LAYOUT STANDAR: GRAND FINAL (2 PESERTA) + PEREBUTAN JUARA 3
+                ========================================================================= */
+                <>
               {/* 1. GRAND FINAL CARD (Juara 1 & 2) */}
               {grandFinalMatch && (() => {
                 const gfPlayable =
@@ -1598,6 +2145,8 @@ export default function TvBracketPage() {
                   </div>
                 );
               })()}
+                </>
+              )}
             </div>
 
             {/* Center Stage Footer: Tombol Interaktif Lihat Podium Juara */}
@@ -2271,6 +2820,280 @@ export default function TvBracketPage() {
                   Simpan ke Bagan Pertandingan
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL 1: EDIT / GANTI PESERTA SLOT 3-WAY FINAL (MERAH / KUNING / BIRU)
+      ========================================================================= */}
+      {show3WaySlotAssignModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-[#180f0a] border-2 border-gold-500/60 rounded-3xl p-6 shadow-2xl text-white">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-coffee-800">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black uppercase text-white shadow ${
+                    show3WaySlotAssignModal === 'red'
+                      ? 'bg-red-600'
+                      : show3WaySlotAssignModal === 'yellow'
+                      ? 'bg-amber-500 text-coffee-950 font-black'
+                      : 'bg-blue-600'
+                  }`}
+                >
+                  {show3WaySlotAssignModal === 'red' ? 'M' : show3WaySlotAssignModal === 'yellow' ? 'K' : 'B'}
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-gold-300 uppercase">
+                    Pilih Peserta Sudut {show3WaySlotAssignModal === 'red' ? 'Merah' : show3WaySlotAssignModal === 'yellow' ? 'Kuning / Emas' : 'Biru'}
+                  </h3>
+                  <p className="text-[11px] text-coffee-300">Final 3 Peserta Langsung</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShow3WaySlotAssignModal(null)}
+                className="text-coffee-400 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gold-400 mb-1.5 uppercase tracking-wider">
+                  Pilih Peserta Terdaftar:
+                </label>
+                <select
+                  value={slotAssign3WayExistingId}
+                  onChange={(e) => {
+                    const pickedId = e.target.value;
+                    setSlotAssign3WayExistingId(pickedId);
+                    if (pickedId === 'NEW') {
+                      setSlotAssign3WayCustomName('');
+                      setSlotAssign3WayCustomAffiliation('');
+                      setSlotAssign3WayCustomPhoto('');
+                    } else {
+                      const p = tournament.participants.find((item) => item.id === pickedId);
+                      if (p) {
+                        setSlotAssign3WayCustomName(p.name);
+                        setSlotAssign3WayCustomAffiliation(p.affiliation || '');
+                        setSlotAssign3WayCustomPhoto(p.photo || '');
+                      }
+                    }
+                  }}
+                  className="w-full bg-[#120a06] border border-coffee-700 focus:border-gold-400 rounded-xl px-3 py-2 text-white text-xs outline-none"
+                >
+                  <option value="">-- Pilih dari Daftar Peserta --</option>
+                  {tournament.participants.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.affiliation ? `(${p.affiliation})` : ''}
+                    </option>
+                  ))}
+                  <option value="NEW">➕ Input Manual Peserta Baru</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-coffee-300 mb-1">
+                  Nama Peserta / Brewer *
+                </label>
+                <input
+                  type="text"
+                  value={slotAssign3WayCustomName}
+                  onChange={(e) => setSlotAssign3WayCustomName(e.target.value)}
+                  placeholder="Nama Peserta"
+                  className="w-full bg-[#120a06] border border-coffee-700 focus:border-gold-400 rounded-xl px-3 py-2 text-white text-xs outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-coffee-300 mb-1">
+                  Afiliasi / Coffeeshop
+                </label>
+                <input
+                  type="text"
+                  value={slotAssign3WayCustomAffiliation}
+                  onChange={(e) => setSlotAssign3WayCustomAffiliation(e.target.value)}
+                  placeholder="Contoh: Ombay Roastery"
+                  className="w-full bg-[#120a06] border border-coffee-700 focus:border-gold-400 rounded-xl px-3 py-2 text-white text-xs outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShow3WaySlotAssignModal(null)}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave3WaySlotParticipant}
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 text-coffee-950 text-xs font-black shadow transition"
+                >
+                  Simpan Slot
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL 2: TENTUKAN URUTAN JUARA (1, 2, 3) PADA FINAL 3 PESERTA
+      ========================================================================= */}
+      {show3WayModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#22140c] via-[#160c07] to-[#0d0704] border-2 border-gold-400 rounded-3xl p-6 md:p-8 shadow-[0_0_60px_rgba(234,179,8,0.4)] text-white">
+            <div className="flex items-center justify-between pb-3 mb-5 border-b border-gold-500/30">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-yellow-400 to-amber-500 flex items-center justify-center text-coffee-950 font-black shadow-lg">
+                  <Trophy className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 to-gold-400">
+                    PENILAIAN FINAL 3 BESAR SEKALIGUS
+                  </h3>
+                  <p className="text-xs text-coffee-300">
+                    Pilih peringkat juara (1, 2, atau 3) untuk masing-masing peserta.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShow3WayModal(false)}
+                className="text-coffee-400 hover:text-white p-1"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* 3 Contender Cards with Rank Selector Buttons */}
+            {(() => {
+              const slots = tournament.final3Way?.slots || {};
+              const contenders: { slotName: string; corner: 'red' | 'yellow' | 'blue'; p: Participant | null | undefined }[] = [
+                { slotName: 'Sudut Merah', corner: 'red', p: slots.red },
+                { slotName: 'Sudut Kuning / Emas', corner: 'yellow', p: slots.yellow },
+                { slotName: 'Sudut Biru', corner: 'blue', p: slots.blue },
+              ];
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                  {contenders.map(({ slotName, corner, p }) => {
+                    const isRank1 = tempRanks3Way.firstId === p?.id;
+                    const isRank2 = tempRanks3Way.secondId === p?.id;
+                    const isRank3 = tempRanks3Way.thirdId === p?.id;
+
+                    return (
+                      <div
+                        key={corner}
+                        className={`p-4 rounded-2xl border-2 flex flex-col justify-between items-center text-center transition ${
+                          corner === 'red'
+                            ? 'bg-red-950/40 border-red-500/60'
+                            : corner === 'yellow'
+                            ? 'bg-amber-950/40 border-amber-500/60'
+                            : 'bg-blue-950/40 border-blue-500/60'
+                        } ${isRank1 ? 'ring-2 ring-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.5)]' : ''}`}
+                      >
+                        <span
+                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full mb-2 ${
+                            corner === 'red'
+                              ? 'bg-red-600 text-white'
+                              : corner === 'yellow'
+                              ? 'bg-amber-500 text-coffee-950 font-black'
+                              : 'bg-blue-600 text-white'
+                          }`}
+                        >
+                          {slotName}
+                        </span>
+
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-black/60 border-2 border-gold-400/60 mb-2 flex items-center justify-center shadow">
+                          {p?.photo ? (
+                            <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-2xl">☕</span>
+                          )}
+                        </div>
+
+                        <div className="text-sm font-black text-white truncate max-w-full mb-0.5">
+                          {p?.name || 'Belum Diisi'}
+                        </div>
+                        <div className="text-[11px] text-coffee-300 truncate max-w-full mb-3">
+                          {p?.affiliation || '-'}
+                        </div>
+
+                        {/* Rank Selection Buttons */}
+                        {p?.id ? (
+                          <div className="w-full space-y-1.5 pt-2 border-t border-coffee-800/80">
+                            <button
+                              type="button"
+                              onClick={() => handleAssign3WayRank(p.id, 1)}
+                              className={`w-full py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+                                isRank1
+                                  ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-coffee-950 shadow-[0_0_15px_rgba(234,179,8,0.7)] scale-105'
+                                  : 'bg-white/5 hover:bg-white/10 text-yellow-300 border border-yellow-500/30'
+                              }`}
+                            >
+                              <span>🏆 JUARA 1</span>
+                              {isRank1 && <Check className="w-3.5 h-3.5" />}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAssign3WayRank(p.id, 2)}
+                              className={`w-full py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+                                isRank2
+                                  ? 'bg-gradient-to-r from-slate-200 to-slate-400 text-slate-950 shadow-md scale-105'
+                                  : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-slate-500/30'
+                              }`}
+                            >
+                              <span>🥈 JUARA 2</span>
+                              {isRank2 && <Check className="w-3.5 h-3.5" />}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleAssign3WayRank(p.id, 3)}
+                              className={`w-full py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+                                isRank3
+                                  ? 'bg-gradient-to-r from-amber-600 to-amber-800 text-white shadow-md scale-105'
+                                  : 'bg-white/5 hover:bg-white/10 text-amber-400 border border-amber-600/30'
+                              }`}
+                            >
+                              <span>🥉 JUARA 3</span>
+                              {isRank3 && <Check className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-red-400">Slot kosong</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-coffee-800">
+              <button
+                type="button"
+                onClick={() => setShow3WayModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSave3WayRanks}
+                className="px-7 py-2.5 rounded-xl bg-gradient-to-r from-gold-500 via-amber-400 to-gold-500 hover:from-gold-400 text-coffee-950 text-xs font-black shadow-[0_0_20px_rgba(234,179,8,0.5)] transition active:scale-95 flex items-center gap-2"
+              >
+                <Crown className="w-4 h-4 text-coffee-950" />
+                <span>SAHKAN JUARA SEKARANG</span>
+              </button>
             </div>
           </div>
         </div>

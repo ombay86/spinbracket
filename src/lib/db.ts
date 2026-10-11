@@ -87,6 +87,19 @@ export interface Tournament {
     second?: Participant | null;
     third?: Participant | null;
   };
+  final3Way?: {
+    enabled: boolean;
+    slots: {
+      red?: Participant | null;
+      yellow?: Participant | null;
+      blue?: Participant | null;
+    };
+    ranks?: {
+      firstId?: string | null;
+      secondId?: string | null;
+      thirdId?: string | null;
+    };
+  };
   createdAt: string;
   updatedAt: string;
 }

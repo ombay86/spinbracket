@@ -139,11 +139,27 @@ export default function TournamentResultsPage() {
     );
   }
 
-  // Derive Winners from tournament.winners or matches (Grand Final & Juara 3)
+  // Derive Winners from tournament.winners, final3Way, or matches (Grand Final & Juara 3)
   const winners = tournament.winners || {};
   let firstPlace = winners.first;
   let secondPlace = winners.second;
   let thirdPlace = winners.third;
+
+  // 3-Way Final derivation if enabled
+  if (tournament.final3Way?.enabled && tournament.final3Way.slots) {
+    const slots = tournament.final3Way.slots;
+    const ranks = tournament.final3Way.ranks || {};
+    const allFinalists = [slots.red, slots.yellow, slots.blue].filter(Boolean) as Participant[];
+    if (!firstPlace && ranks.firstId) {
+      firstPlace = allFinalists.find((p) => p.id === ranks.firstId) || null;
+    }
+    if (!secondPlace && ranks.secondId) {
+      secondPlace = allFinalists.find((p) => p.id === ranks.secondId) || null;
+    }
+    if (!thirdPlace && ranks.thirdId) {
+      thirdPlace = allFinalists.find((p) => p.id === ranks.thirdId) || null;
+    }
+  }
 
   // Fallback to inspect matches if winners object not fully populated
   if (!firstPlace || !secondPlace || !thirdPlace) {
