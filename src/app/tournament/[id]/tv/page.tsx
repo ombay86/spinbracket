@@ -1600,16 +1600,19 @@ export default function TvBracketPage() {
               })()}
             </div>
 
-            {/* Center Stage Footer Info */}
-            <div className="relative z-10 pt-1 text-center border-t border-gold-500/30 shrink-0">
-              <div className="text-[10px] md:text-[11px] font-bold text-gold-300 flex items-center justify-center gap-1.5 truncate">
-                <Sparkles className="w-3.5 h-3.5 text-gold-400 shrink-0" />
-                <span className="truncate">
-                  {semiLeftId && semiRightId && tournament.matches[semiLeftId] && tournament.matches[semiRightId]
-                    ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiLeftId])} vs ${getMatchDisplayLabel(tournament.matches[semiRightId])} diadu untuk Juara 1 & 2 • Kalah untuk Juara 3`
-                    : 'Pemenang Semifinal diadu untuk Juara 1 & 2 • Kalah untuk Juara 3'}
+            {/* Center Stage Footer: Tombol Interaktif Lihat Podium Juara */}
+            <div className="relative z-10 pt-1 shrink-0">
+              <Link
+                href={`/tournament/${tournamentId}/results`}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 hover:from-yellow-400 hover:to-amber-300 text-coffee-950 font-black text-xs md:text-sm shadow-[0_0_20px_rgba(234,179,8,0.5)] border border-yellow-200 transition active:scale-95 group"
+                title="Buka Panggung & Podium Pemenang (Piala & Foto)"
+              >
+                <Trophy className="w-4 h-4 text-coffee-950 group-hover:rotate-12 transition duration-300" />
+                <span className="uppercase tracking-wider">
+                  🏆 LIHAT PODIUM & JUARA TURNAMEN
                 </span>
-              </div>
+                <Sparkles className="w-4 h-4 text-coffee-950 group-hover:scale-125 transition duration-300" />
+              </Link>
             </div>
           </div>
 
