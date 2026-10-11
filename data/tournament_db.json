@@ -6,10 +6,10 @@
       "passwordHash": "admin123",
       "name": "Panitia Turnamen",
       "createdAt": "2026-10-09T04:19:53.691Z",
-      "activeSessionId": null,
-      "activeDeviceId": "dev_1791608428155_8ha7s8e",
+      "activeSessionId": "sess_1791681429070_pzej5i9",
+      "activeDeviceId": "dev_1791681428767_r7im3v2",
       "activeDeviceName": "Microsoft Edge (Windows PC)",
-      "lastActiveAt": null,
+      "lastActiveAt": 1791681509355,
       "lastIp": "::1"
     },
     {

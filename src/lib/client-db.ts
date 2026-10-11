@@ -38,6 +38,42 @@ async function syncTournamentDeleteToBackend(id: string) {
   }
 }
 
+const VIEW_ONLY_KEY = 'spinbracket_is_view_only';
+
+// Helper to preserve local participant and match photos during remote sync
+function mergeTournamentPreservingPhotos(localTour: Tournament | undefined, incomingTour: Tournament): Tournament {
+  if (!localTour) return incomingTour;
+
+  // Preserve participant avatar photos
+  if (localTour.participants && incomingTour.participants) {
+    incomingTour.participants = incomingTour.participants.map((inP) => {
+      const locP = localTour.participants.find((p) => p.id === inP.id);
+      if (locP?.photo && (!inP.photo || inP.photo.trim() === '')) {
+        return { ...inP, photo: locP.photo };
+      }
+      return inP;
+    });
+  }
+
+  // Preserve match slot avatar photos
+  if (localTour.matches && incomingTour.matches) {
+    Object.keys(incomingTour.matches).forEach((mId) => {
+      const locM = localTour.matches[mId];
+      const inM = incomingTour.matches[mId];
+      if (locM && inM) {
+        if (locM.participantA?.photo && inM.participantA && !inM.participantA.photo) {
+          inM.participantA.photo = locM.participantA.photo;
+        }
+        if (locM.participantB?.photo && inM.participantB && !inM.participantB.photo) {
+          inM.participantB.photo = locM.participantB.photo;
+        }
+      }
+    });
+  }
+
+  return incomingTour;
+}
+
 let hasInitialSynced = false;
 async function initialSyncWithBackend() {
   if (typeof window === 'undefined' || hasInitialSynced) return;
@@ -51,7 +87,7 @@ async function initialSyncWithBackend() {
       let hasChanges = false;
       const backendTournaments: Tournament[] = json.tournaments;
 
-      // 1. Merge backend tournaments into local
+      // 1. Merge backend tournaments into local (preserving any local photos)
       backendTournaments.forEach((bTour) => {
         const localIdx = db.tournaments.findIndex((t) => t.id === bTour.id);
         if (localIdx === -1) {
@@ -61,7 +97,7 @@ async function initialSyncWithBackend() {
           const bTime = new Date(bTour.updatedAt || 0).getTime();
           const lTime = new Date(db.tournaments[localIdx].updatedAt || 0).getTime();
           if (bTime > lTime) {
-            db.tournaments[localIdx] = bTour;
+            db.tournaments[localIdx] = mergeTournamentPreservingPhotos(db.tournaments[localIdx], bTour);
             hasChanges = true;
           }
         }
@@ -349,6 +385,7 @@ export const clientDb = {
       localStorage.removeItem(SESSION_KEY);
       localStorage.removeItem('spinbracket_user');
       localStorage.removeItem('spinbracket_session_id');
+      localStorage.removeItem(VIEW_ONLY_KEY);
       try {
         await fetch('/api/auth/logout', {
           method: 'POST',
@@ -359,6 +396,22 @@ export const clientDb = {
         // offline fallback
       }
     }
+  },
+
+  // View Only (Read-Only) Multi-Device Mode
+  isReadOnly(): boolean {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(VIEW_ONLY_KEY) === 'true';
+  },
+
+  setReadOnly(val: boolean): void {
+    if (typeof window === 'undefined') return;
+    if (val) {
+      localStorage.setItem(VIEW_ONLY_KEY, 'true');
+    } else {
+      localStorage.removeItem(VIEW_ONLY_KEY);
+    }
+    window.dispatchEvent(new CustomEvent('spinbracket_view_mode_changed', { detail: { isReadOnly: val } }));
   },
 
   // Tournaments CRUD
@@ -441,13 +494,17 @@ export const clientDb = {
         if (json.success && json.tournament) {
           const db = loadDb();
           const idx = db.tournaments.findIndex((t) => t.id === id);
+          const merged =
+            idx >= 0
+              ? mergeTournamentPreservingPhotos(db.tournaments[idx], json.tournament)
+              : json.tournament;
           if (idx >= 0) {
-            db.tournaments[idx] = json.tournament;
+            db.tournaments[idx] = merged;
           } else {
-            db.tournaments.push(json.tournament);
+            db.tournaments.push(merged);
           }
           saveDb(db);
-          return json.tournament;
+          return merged;
         }
       }
     } catch (e) {
@@ -463,7 +520,10 @@ export const clientDb = {
         const json = await res.json();
         if (json.success && Array.isArray(json.tournaments)) {
           const db = loadDb();
-          db.tournaments = json.tournaments;
+          const existingMap = new Map(db.tournaments.map((t) => [t.id, t]));
+          db.tournaments = json.tournaments.map((bTour: Tournament) =>
+            mergeTournamentPreservingPhotos(existingMap.get(bTour.id), bTour)
+          );
           saveDb(db);
           return db.tournaments;
         }

@@ -92,31 +92,30 @@ function LoginFormContent() {
           ? new Date(data.lastActiveAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
           : 'baru saja';
 
-        const takeover = await showAlert.confirm({
-          title: 'Akses Ditolak: Akun Sedang Digunakan!',
+        const userChoice = await showAlert.promptChoice({
+          title: 'Perangkat Lain Sedang Aktif!',
           html: `
-            <div style="text-align: left; font-size: 13px; line-height: 1.6; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4); padding: 14px 16px; border-radius: 14px; margin-bottom: 14px;">
-              <p style="margin: 0 0 8px 0; color: #fca5a5; font-weight: 700;">
-                Akun <strong>"${username}"</strong> saat ini sedang aktif digunakan di:
+            <div style="text-align: left; font-size: 13px; line-height: 1.6; background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); padding: 14px 16px; border-radius: 14px; margin-bottom: 14px;">
+              <p style="margin: 0 0 8px 0; color: #fde047; font-weight: 700;">
+                Akun <strong>"${username}"</strong> saat ini sedang memegang kontrol editor di:
               </p>
               <div style="background: rgba(0,0,0,0.5); padding: 10px 14px; border-radius: 10px; color: #fef08a; font-weight: 800; border: 1px solid rgba(234,179,8,0.3);">
                 💻 ${activeDevice} <span style="font-weight: 400; color: #c4a482; font-size: 11px;">(Aktif: ${lastActiveTime})</span>
               </div>
-              <p style="margin: 12px 0 0 0; color: #fecaca; font-size: 12px;">
-                ⚠️ <strong>Kebijakan Sistem:</strong> 1 akun hanya dapat terlogin di 1 perangkat secara bersamaan agar data pertandingan tetap sinkron dan tidak bentrok.
+              <p style="margin: 12px 0 0 0; color: #e5cbb5; font-size: 12px;">
+                💡 <strong>Pilihan Akses:</strong>
+                <br/>• <strong>Ambil Alih Editor:</strong> Memutus kontrol perangkat lama dan menjadikan perangkat ini satu-satunya editor.
+                <br/>• <strong>View Only:</strong> Masuk untuk memantau bracket & turnamen tanpa mengganggu editor yang sedang bekerja.
               </p>
             </div>
-            <div style="font-size: 13px; color: #e5cbb5; text-align: center;">
-              Apakah Anda ingin <strong>memutus paksa</strong> perangkat tersebut dan masuk di perangkat ini?
-            </div>
           `,
-          confirmText: '⚠️ Paksa Logout Perangkat Lain & Masuk',
-          cancelText: 'Batalkan Login',
-          isDanger: true,
+          confirmText: '⚠️ Ambil Alih Editor',
+          denyText: '👁️ Masuk Sebagai View Only',
+          cancelText: 'Batalkan',
           icon: 'warning',
         });
 
-        if (takeover) {
+        if (userChoice === 'confirm') {
           setLoading(true);
           const forceRes = await fetch('/api/auth/login', {
             method: 'POST',
@@ -127,15 +126,33 @@ function LoginFormContent() {
           if (!forceRes.ok) {
             throw new Error(forceData.error || 'Gagal mengambil alih sesi');
           }
+          clientDb.setReadOnly(false);
           clientDb.setSessionId(forceData.sessionId);
           clientDb.setCurrentUser(forceData.user);
-          showAlert.success('Berhasil Masuk!', 'Perangkat lama telah di-logout otomatis.', 2000);
+          showAlert.success('Berhasil Masuk!', 'Perangkat ini sekarang menjadi Editor Utama.', 2000);
           setTimeout(() => {
             window.location.href = '/dashboard';
           }, 800);
           return;
+        } else if (userChoice === 'deny') {
+          // View Only Mode
+          clientDb.setReadOnly(true);
+          // Set user object locally so pages can display user info
+          const fallbackUser = {
+            id: 'view_user',
+            username,
+            name: username.toUpperCase(),
+            passwordHash: '',
+            createdAt: new Date().toISOString(),
+          };
+          clientDb.setCurrentUser(fallbackUser);
+          showAlert.info('Mode View-Only Aktif', 'Anda dapat memantau jalannya turnamen tanpa hak mengubah data.');
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 600);
+          return;
         } else {
-          setError(`Login ditolak: Akun sedang aktif di ${activeDevice}. Silakan logout dari perangkat tersebut.`);
+          setError(`Login dibatalkan: Akun sedang aktif di ${activeDevice}.`);
           return;
         }
       }

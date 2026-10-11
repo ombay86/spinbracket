@@ -47,6 +47,52 @@ export default function TvBracketPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isFullView, setIsFullView] = useState(false);
   const [viewPreference, setViewPreference] = useState<'auto' | 'bilateral' | 'linear'>('auto');
+  const [isReadOnly, setIsReadOnly] = useState(false);
+
+  // Takeover editor mode for view-only devices
+  const handleTakeoverEditor = async () => {
+    const user = clientDb.getCurrentUser();
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    const confirmed = await showAlert.confirm({
+      title: 'Ambil Alih Akses Editor?',
+      text: 'Perangkat ini akan menjadi pengendali utama (Editor). Perangkat lain yang sedang mengedit akan dialihkan ke Mode Penonton (View Only).',
+      confirmText: '⚡ Ya, Ambil Alih Editor',
+      cancelText: 'Batal',
+      icon: 'warning',
+    });
+    if (!confirmed) return;
+
+    try {
+      const deviceId = clientDb.getDeviceId();
+      const deviceName = clientDb.getDeviceName();
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: user.username,
+          password: user.passwordHash || 'admin123',
+          deviceId,
+          deviceName,
+          forceTakeover: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal mengambil alih akses editor');
+      }
+      if (data.sessionId) {
+        clientDb.setSessionId(data.sessionId);
+      }
+      clientDb.setReadOnly(false);
+      setIsReadOnly(false);
+      showAlert.success('Akses Editor Berhasil Diambil!', 'Anda sekarang memiliki akses penuh untuk mengedit turnamen.', 2000);
+    } catch (e: any) {
+      showAlert.error('Gagal Mengambil Alih', e.message || 'Terjadi kesalahan');
+    }
+  };
 
   // Selected match for adjudication modal
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -170,6 +216,7 @@ export default function TvBracketPage() {
 
   useEffect(() => {
     fetchTournament();
+    setIsReadOnly(clientDb.isReadOnly());
 
     // Async fetch fresh from Jurnal Ombay master database
     clientDb.fetchTournamentByIdAsync(tournamentId).then((fresh) => {
@@ -181,8 +228,16 @@ export default function TvBracketPage() {
       if (fresh) setTournament(fresh);
     };
 
+    const handleViewModeChanged = (e: any) => {
+      setIsReadOnly(!!e.detail?.isReadOnly);
+    };
+
     window.addEventListener('spinbracket_data_synced', handleSynced);
-    return () => window.removeEventListener('spinbracket_data_synced', handleSynced);
+    window.addEventListener('spinbracket_view_mode_changed', handleViewModeChanged);
+    return () => {
+      window.removeEventListener('spinbracket_data_synced', handleSynced);
+      window.removeEventListener('spinbracket_view_mode_changed', handleViewModeChanged);
+    };
   }, [tournamentId]);
 
   // Fullscreen toggle
@@ -762,6 +817,14 @@ export default function TvBracketPage() {
   const grandFinalMatch = roundFinal && roundFinal.matchIds.length > 0 ? tournament.matches[roundFinal.matchIds[0]] : null;
   const thirdPlaceMatch = roundFinal && roundFinal.matchIds.length > 1 ? tournament.matches[roundFinal.matchIds[1]] : null;
 
+  // Helper to retrieve participant avatar photo from slot or tournament participant list
+  const getParticipantPhoto = (participantId?: string, slotPhoto?: string): string | undefined => {
+    if (slotPhoto && slotPhoto.trim()) return slotPhoto;
+    if (!participantId || !tournament) return undefined;
+    const p = tournament.participants?.find((item) => item.id === participantId);
+    return p?.photo || undefined;
+  };
+
   // Helper to dynamically calculate consecutive Battle number for any match (including previously labelled bypass matches)
   const getMatchDisplayLabel = (match: Match): string => {
     if (!tournament) return match.label;
@@ -812,7 +875,7 @@ export default function TvBracketPage() {
       <div
         key={match.id}
         onClick={handleCardClick}
-        className={`shrink-0 flex flex-col justify-center transition p-3 rounded-2xl ${
+        className={`shrink-0 flex flex-col justify-center transition p-2.5 md:p-3 rounded-2xl ${
           isPlayable ? 'cursor-pointer hover:scale-[1.01]' : 'cursor-not-allowed opacity-60'
         } ${
           isProminent ? 'border-2 shadow-lg' : 'border'
@@ -838,7 +901,7 @@ export default function TvBracketPage() {
         {/* Participant A */}
         <div
           onDragOver={(e) => {
-            if (!isCompleted && draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
+            if (!isCompleted && !isReadOnly && draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
               e.preventDefault();
               setDragOverTarget(`${match.id}-A`);
             }
@@ -846,6 +909,7 @@ export default function TvBracketPage() {
           onDragLeave={() => setDragOverTarget(null)}
           onDrop={(e) => {
             e.preventDefault();
+            if (isReadOnly) return;
             if (draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
               handleDropOnTvSlot(match.id, 'A');
             } else {
@@ -854,9 +918,9 @@ export default function TvBracketPage() {
               setDragOverTarget(null);
             }
           }}
-          draggable={hasSlotA && !isCompleted}
+          draggable={hasSlotA && !isCompleted && !isReadOnly}
           onDragStart={(e) => {
-            if (hasSlotA && !isCompleted && match.participantA) {
+            if (hasSlotA && !isCompleted && !isReadOnly && match.participantA) {
               e.stopPropagation();
               setDraggedSlot({
                 matchId: match.id,
@@ -870,7 +934,7 @@ export default function TvBracketPage() {
             setDraggedSlot(null);
             setDragOverTarget(null);
           }}
-          className={`flex items-center justify-between mb-1 px-3 py-1.5 rounded-xl group/slot relative transition ${
+          className={`flex items-center justify-between mb-1 px-2.5 py-1.5 rounded-xl group/slot relative transition ${
             dragOverTarget === `${match.id}-A` && draggedSlot?.roundIndex === match.roundIndex
               ? 'bg-gold-500/40 border-2 border-gold-400 scale-[1.02] shadow-[0_0_12px_rgba(234,179,8,0.5)]'
               : match.winnerId === match.participantA?.participantId
@@ -880,25 +944,45 @@ export default function TvBracketPage() {
               : 'bg-black/25 text-coffee-500/60 border border-dashed border-coffee-800/40'
           }`}
         >
-          <div className="flex items-center gap-1.5 truncate">
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                hasSlotA ? 'bg-red-400' : 'bg-red-900/40'
-              }`}
-            />
-            <span
-              className={`truncate text-sm md:text-base ${
-                hasSlotA ? 'font-black text-white' : 'font-normal italic text-coffee-500/70 text-xs md:text-sm'
-              }`}
-            >
-              {match.participantA?.name || (dragOverTarget === `${match.id}-A` && draggedSlot?.roundIndex === match.roundIndex ? 'Tukar ke sini' : 'Slot Kosong')}
-            </span>
+          <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+            {/* Foto Avatar Participant A */}
+            <div className="relative shrink-0">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-black/60 border border-gold-400/40 overflow-hidden flex items-center justify-center shadow-inner">
+                {(() => {
+                  const pPhoto = getParticipantPhoto(match.participantA?.participantId, match.participantA?.photo);
+                  if (pPhoto) {
+                    return <img src={pPhoto} alt={match.participantA?.name || 'A'} className="w-full h-full object-cover" />;
+                  }
+                  return <span className="text-xs select-none">☕</span>;
+                })()}
+              </div>
+              <span
+                className={`absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full border border-black/80 ${
+                  hasSlotA ? 'bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]' : 'bg-red-900/60'
+                }`}
+                title="Sudut Merah"
+              />
+            </div>
+            <div className="truncate min-w-0 flex-1">
+              <div
+                className={`truncate ${
+                  hasSlotA ? 'font-black text-white text-xs md:text-sm leading-tight' : 'font-normal italic text-coffee-500/70 text-xs'
+                }`}
+              >
+                {match.participantA?.name || (dragOverTarget === `${match.id}-A` && draggedSlot?.roundIndex === match.roundIndex ? 'Tukar ke sini' : 'Slot Kosong')}
+              </div>
+              {hasSlotA && match.participantA?.affiliation && (
+                <div className="text-[10px] text-coffee-400 truncate leading-tight">
+                  {match.participantA.affiliation}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-1">
             {match.winnerId === match.participantA?.participantId && (
               <Award className="w-3.5 h-3.5 text-coffee-950" />
             )}
-            {!isCompleted && match.roundIndex <= 1 && (
+            {!isCompleted && match.roundIndex <= 1 && !isReadOnly && (
               <button
                 type="button"
                 onClick={(e) => handleOpenSlotAssign(match, 'A', e)}
@@ -914,7 +998,7 @@ export default function TvBracketPage() {
         {/* Participant B */}
         <div
           onDragOver={(e) => {
-            if (!isCompleted && draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
+            if (!isCompleted && !isReadOnly && draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
               e.preventDefault();
               setDragOverTarget(`${match.id}-B`);
             }
@@ -922,6 +1006,7 @@ export default function TvBracketPage() {
           onDragLeave={() => setDragOverTarget(null)}
           onDrop={(e) => {
             e.preventDefault();
+            if (isReadOnly) return;
             if (draggedSlot && draggedSlot.roundIndex === match.roundIndex) {
               handleDropOnTvSlot(match.id, 'B');
             } else {
@@ -930,9 +1015,9 @@ export default function TvBracketPage() {
               setDragOverTarget(null);
             }
           }}
-          draggable={hasSlotB && !isCompleted}
+          draggable={hasSlotB && !isCompleted && !isReadOnly}
           onDragStart={(e) => {
-            if (hasSlotB && !isCompleted && match.participantB) {
+            if (hasSlotB && !isCompleted && !isReadOnly && match.participantB) {
               e.stopPropagation();
               setDraggedSlot({
                 matchId: match.id,
@@ -946,7 +1031,7 @@ export default function TvBracketPage() {
             setDraggedSlot(null);
             setDragOverTarget(null);
           }}
-          className={`flex items-center justify-between px-3 py-1.5 rounded-xl group/slot relative transition ${
+          className={`flex items-center justify-between px-2.5 py-1.5 rounded-xl group/slot relative transition ${
             dragOverTarget === `${match.id}-B` && draggedSlot?.roundIndex === match.roundIndex
               ? 'bg-gold-500/40 border-2 border-gold-400 scale-[1.02] shadow-[0_0_12px_rgba(234,179,8,0.5)]'
               : match.winnerId === match.participantB?.participantId
@@ -958,31 +1043,52 @@ export default function TvBracketPage() {
               : 'bg-black/25 text-coffee-500/60 border border-dashed border-coffee-800/40'
           }`}
         >
-          <div className="flex items-center gap-1.5 truncate">
-            <span
-              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                hasSlotB || isBye ? 'bg-blue-400' : 'bg-blue-900/40'
-              }`}
-            />
-            <span
-              className={`truncate ${
-                hasSlotB
-                  ? 'font-black text-white text-sm md:text-base'
-                  : isBye
-                  ? 'font-medium text-coffee-400/90 text-xs md:text-sm'
-                  : 'font-normal italic text-coffee-500/70 text-xs md:text-sm'
-              }`}
-            >
-              {isBye
-                ? '➕ Isi Lawan (Adu Lagi)'
-                : match.participantB?.name || (dragOverTarget === `${match.id}-B` ? 'Tukar ke sini' : 'Slot Kosong')}
-            </span>
+          <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+            {/* Foto Avatar Participant B */}
+            <div className="relative shrink-0">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-black/60 border border-gold-400/40 overflow-hidden flex items-center justify-center shadow-inner">
+                {(() => {
+                  if (isBye) return <span className="text-[10px] font-black text-amber-400">BYE</span>;
+                  const pPhoto = getParticipantPhoto(match.participantB?.participantId, match.participantB?.photo);
+                  if (pPhoto) {
+                    return <img src={pPhoto} alt={match.participantB?.name || 'B'} className="w-full h-full object-cover" />;
+                  }
+                  return <span className="text-xs select-none">☕</span>;
+                })()}
+              </div>
+              <span
+                className={`absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full border border-black/80 ${
+                  hasSlotB || isBye ? 'bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.8)]' : 'bg-blue-900/60'
+                }`}
+                title="Sudut Biru"
+              />
+            </div>
+            <div className="truncate min-w-0 flex-1">
+              <div
+                className={`truncate ${
+                  hasSlotB
+                    ? 'font-black text-white text-xs md:text-sm leading-tight'
+                    : isBye
+                    ? 'font-bold text-amber-400 text-xs'
+                    : 'font-normal italic text-coffee-500/70 text-xs'
+                }`}
+              >
+                {isBye
+                  ? '➕ Isi Lawan (Adu Lagi)'
+                  : match.participantB?.name || (dragOverTarget === `${match.id}-B` ? 'Tukar ke sini' : 'Slot Kosong')}
+              </div>
+              {hasSlotB && match.participantB?.affiliation && (
+                <div className="text-[10px] text-coffee-400 truncate leading-tight">
+                  {match.participantB.affiliation}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-1 shrink-0 ml-1">
             {match.winnerId === match.participantB?.participantId && (
               <Award className="w-3.5 h-3.5 text-coffee-950" />
             )}
-            {!isCompleted && match.roundIndex <= 1 && (
+            {!isCompleted && match.roundIndex <= 1 && !isReadOnly && (
               <button
                 type="button"
                 onClick={(e) => handleOpenSlotAssign(match, 'B', e)}
@@ -1003,17 +1109,17 @@ export default function TvBracketPage() {
       {/* =========================================================================
           TOP HEADER BAR (Full Width Edge-to-Edge)
       ========================================================================= */}
-      <header className="w-full flex items-center justify-between pb-3 border-b-2 border-gold-500/40">
+      <header className="w-full flex items-center justify-between pb-2 md:pb-3 border-b-2 border-gold-500/40 shrink-0">
         {/* Left Brand Badge */}
-        <div className="flex items-center gap-3 bg-[#1e130c] border border-gold-500/50 rounded-2xl px-4 py-2 shadow-lg">
-          <div className="w-10 h-10 rounded-xl bg-gold-500/20 border border-gold-500/40 flex items-center justify-center text-gold-400">
+        <div className="flex items-center gap-3 bg-[#1e130c] border border-gold-500/50 rounded-2xl px-3.5 py-1.5 md:px-4 md:py-2 shadow-lg">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gold-500/20 border border-gold-500/40 flex items-center justify-center text-gold-400">
             <Trophy className="w-5 h-5 text-gold-400" />
           </div>
           <div>
-            <div className="text-lg md:text-xl font-black tracking-tight text-white uppercase truncate max-w-sm">
+            <div className="text-base md:text-xl font-black tracking-tight text-white uppercase truncate max-w-sm">
               {tournament.title}
             </div>
-            <div className="text-[11px] text-gold-300 font-bold tracking-widest uppercase">
+            <div className="text-[10px] md:text-[11px] text-gold-300 font-bold tracking-widest uppercase">
               {tournament.subtitle || 'SPINBRACKET TOURNAMENT ARENA'}
             </div>
           </div>
@@ -1021,16 +1127,32 @@ export default function TvBracketPage() {
 
         {/* Center Stage Info */}
         <div className="text-center">
-          <h1 className="text-xl md:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-gold-400 to-amber-500 uppercase">
+          <h1 className="text-lg md:text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-gold-400 to-amber-500 uppercase">
             BAGAN TURNAMEN ({tournament.participants?.length || 0} PESERTA)
           </h1>
-          <p className="text-xs text-coffee-300 font-semibold tracking-wider mt-0.5">
+          <p className="text-[11px] md:text-xs text-coffee-300 font-semibold tracking-wider mt-0.5">
             {tournament.location} &nbsp;|&nbsp; {tournament.date}
           </p>
         </div>
 
         {/* Right Action & TV Controls */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 md:gap-2.5">
+          {/* View Only Mode Indicator */}
+          {isReadOnly && (
+            <div className="flex items-center gap-1.5 bg-blue-950/80 border border-blue-500/60 text-blue-300 px-3 py-1.5 rounded-xl text-xs font-bold shadow">
+              <Eye className="w-3.5 h-3.5 text-blue-400" />
+              <span>Mode Penonton</span>
+              <button
+                type="button"
+                onClick={handleTakeoverEditor}
+                className="ml-1 px-2 py-0.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black transition active:scale-95"
+                title="Ambil alih kontrol sebagai Editor"
+              >
+                Ambil Alih
+              </button>
+            </div>
+          )}
+
           {/* Primary View Toggle: Mode Panggung Piala vs Mode Bagan Kolom */}
           <button
             onClick={() => setViewPreference(isBilateralView ? 'linear' : 'bilateral')}
@@ -1121,23 +1243,23 @@ export default function TvBracketPage() {
         /* =======================================================================
            BILATERAL WING ARENA (Sayap Kiri - Piala Emas Tengah - Sayap Kanan)
         ======================================================================= */
-        <div className="flex-1 w-full grid grid-cols-12 gap-3.5 items-stretch my-2 overflow-hidden">
-          {/* SAYAP KIRI (Cols 1-4) */}
-          <div className="col-span-4 flex items-stretch gap-3 h-full">
+        <div className="flex-1 min-h-0 w-full grid grid-cols-12 gap-3 md:gap-3.5 items-stretch my-1.5 md:my-2 overflow-hidden">
+          {/* SAYAP KIRI (Cols 1-4: 50% QF Kiri + 50% Semifinal 1) */}
+          <div className="col-span-4 grid grid-cols-2 gap-2.5 md:gap-3 h-full min-h-0 overflow-hidden">
             {/* Column 1: Babak Perempat Final Kiri */}
-            <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
-              <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2.5 rounded-xl mb-2 font-black text-xs md:text-sm shadow flex items-center justify-between gap-1">
+            <div className="flex flex-col h-full min-h-0 bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2 md:p-2.5 shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-1.5 px-2 rounded-xl mb-1.5 font-black text-xs md:text-sm shadow flex items-center justify-between gap-1 shrink-0">
                 <div className="text-left truncate">
-                  <div>{roundBabak3?.name ? `${roundBabak3.name} (KIRI)` : 'BABAK KIRI'}</div>
-                  <div className="text-[10px] text-coffee-950/80 font-bold">
+                  <div className="truncate font-black">{roundBabak3?.name ? `${roundBabak3.name} (KIRI)` : 'BABAK KIRI'}</div>
+                  <div className="text-[9px] md:text-[10px] text-coffee-950/80 font-bold">
                     {b3LeftIds.length > 0 ? `${b3LeftIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
                   </div>
                 </div>
-                {qfRoundIndex >= 0 && (
+                {qfRoundIndex >= 0 && !isReadOnly && (
                   <button
                     type="button"
                     onClick={() => handleReshuffleRound(qfRoundIndex)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-coffee-950 text-gold-300 hover:bg-black hover:text-gold-200 border border-gold-400 shadow transition active:scale-95 shrink-0"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] md:text-[10px] font-black bg-coffee-950 text-gold-300 hover:bg-black hover:text-gold-200 border border-gold-400 shadow transition active:scale-95 shrink-0"
                     title="Kocok Ulang Perempat Final"
                   >
                     <Shuffle className="w-3 h-3 text-gold-400" />
@@ -1145,56 +1267,56 @@ export default function TvBracketPage() {
                   </button>
                 )}
               </div>
-              <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
+              <div className="flex-1 min-h-0 flex flex-col justify-around gap-1.5 overflow-y-auto pr-1 column-scrollbar">
                 {b3LeftIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
               </div>
             </div>
 
             {/* Column 2: Semifinal Kiri */}
-            <div className="flex-1 flex flex-col h-full bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2.5 shadow-xl">
-              <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
+            <div className="flex flex-col h-full min-h-0 bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2 md:p-2.5 shadow-xl overflow-hidden">
+              <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-1.5 px-2 rounded-xl mb-1.5 font-black text-xs md:text-sm shadow shrink-0">
                 <div>SEMIFINAL 1</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">
+                <div className="text-[9px] md:text-[10px] text-coffee-950/80 font-bold truncate">
                   {semiLeftId && tournament.matches[semiLeftId]
                     ? getMatchDisplayLabel(tournament.matches[semiLeftId]).toUpperCase()
                     : 'SEMIFINAL 1'}
                 </div>
               </div>
-              <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
+              <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {semiLeftId && renderMatchCard(tournament.matches[semiLeftId], 'prominent')}
               </div>
             </div>
           </div>
 
-          {/* PANGGUNG UTAMA & PIALA EMAS (Cols 5-8: Centerpiece) */}
-          <div className="col-span-4 flex flex-col justify-between h-full bg-gradient-to-b from-[#25150b] via-[#1a0e07] to-[#0f0703] rounded-3xl border-2 border-gold-500/80 p-4 shadow-[0_0_60px_rgba(234,179,8,0.35)] relative overflow-hidden">
+          {/* PANGGUNG UTAMA & PIALA EMAS (Cols 5-8: Centerpiece Simetris) */}
+          <div className="col-span-4 flex flex-col justify-between h-full min-h-0 bg-gradient-to-b from-[#25150b] via-[#1a0e07] to-[#0f0703] rounded-3xl border-2 border-gold-500/80 p-2.5 md:p-3 shadow-[0_0_50px_rgba(234,179,8,0.35)] relative overflow-hidden">
             {/* Ambient Radial Golden Glow */}
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(234,179,8,0.2)_0%,transparent_75%)] pointer-events-none" />
 
             {/* Grand Golden Trophy Illustration */}
-            <div className="relative z-10 flex flex-col items-center justify-center pt-1 pb-2">
+            <div className="relative z-10 flex flex-col items-center justify-center shrink-0 pt-0.5 pb-1">
               <div className="flex items-center justify-center">
-                <span className="text-3xl md:text-4xl text-gold-400/60 select-none">🌿</span>
-                <div className="relative mx-3">
-                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-600 p-1 shadow-[0_0_40px_rgba(234,179,8,0.7)] flex items-center justify-center animate-vs-glow">
+                <span className="text-2xl md:text-3xl text-gold-400/60 select-none">🌿</span>
+                <div className="relative mx-2.5">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-b from-yellow-300 via-amber-400 to-amber-600 p-0.5 shadow-[0_0_30px_rgba(234,179,8,0.6)] flex items-center justify-center animate-vs-glow">
                     <div className="w-full h-full rounded-full bg-[#160c07] flex items-center justify-center">
-                      <Trophy className="w-12 h-12 md:w-14 md:h-14 text-yellow-300 drop-shadow-[0_0_15px_rgba(234,179,8,0.9)] animate-crown" />
+                      <Trophy className="w-7 h-7 md:w-8 md:h-8 text-yellow-300 drop-shadow-[0_0_12px_rgba(234,179,8,0.9)] animate-crown" />
                     </div>
                   </div>
-                  <Sparkles className="w-5 h-5 text-yellow-300 absolute -top-1 -right-1 animate-spin" />
+                  <Sparkles className="w-4 h-4 text-yellow-300 absolute -top-1 -right-1 animate-spin" />
                 </div>
-                <span className="text-3xl md:text-4xl text-gold-400/60 select-none scale-x-[-1]">🌿</span>
+                <span className="text-2xl md:text-3xl text-gold-400/60 select-none scale-x-[-1]">🌿</span>
               </div>
 
-              <div className="mt-1 text-center">
-                <div className="inline-block px-4 py-0.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 text-coffee-950 font-black text-[11px] md:text-xs tracking-widest uppercase shadow">
+              <div className="mt-0.5 text-center">
+                <div className="inline-block px-3 py-0.5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 text-coffee-950 font-black text-[10px] md:text-[11px] tracking-widest uppercase shadow">
                   CHAMPIONSHIP STAGE • ROAD TO THE THRONE
                 </div>
               </div>
             </div>
 
             {/* The Final Battles: Grand Final & Perebutan Juara 3 */}
-            <div className="relative z-10 flex-1 flex flex-col justify-around gap-2.5 my-1">
+            <div className="relative z-10 flex-1 min-h-0 flex flex-col justify-around gap-2 my-1">
               {/* 1. GRAND FINAL CARD (Juara 1 & 2) */}
               {grandFinalMatch && (() => {
                 const gfPlayable =
@@ -1213,7 +1335,7 @@ export default function TvBracketPage() {
                       }
                       setSelectedMatch(grandFinalMatch);
                     }}
-                    className={`rounded-2xl border-2 p-3.5 transition shadow-xl ${
+                    className={`rounded-2xl border-2 p-2.5 md:p-3 transition shadow-xl ${
                       gfPlayable ? 'cursor-pointer hover:scale-[1.01]' : 'cursor-not-allowed opacity-60'
                     } ${
                       grandFinalMatch.status === 'completed'
@@ -1223,22 +1345,22 @@ export default function TvBracketPage() {
                         : 'bg-[#180f0a] border-coffee-800 text-coffee-500'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gold-500/30">
+                    <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-gold-500/30">
                       <div className="flex items-center gap-1.5 text-xs md:text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 to-gold-400">
-                        <Crown className="w-4 h-4 text-gold-400" />
+                        <Crown className="w-3.5 h-3.5 md:w-4 md:h-4 text-gold-400" />
                         <span>GRAND FINAL • PEREBUTAN JUARA 1 & 2</span>
                       </div>
                       {grandFinalMatch.status === 'completed' ? (
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
+                        <span className="text-[9px] md:text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
                       ) : gfPlayable ? (
-                        <span className="text-[10px] font-bold text-gold-300">KLIK UNTUK TANDING</span>
+                        <span className="text-[9px] md:text-[10px] font-bold text-gold-300">KLIK UNTUK TANDING</span>
                       ) : (
-                        <span className="text-[10px] text-coffee-500">BELUM SIAP</span>
+                        <span className="text-[9px] md:text-[10px] text-coffee-500">BELUM SIAP</span>
                       )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-center">
-                      {/* Finalis A */}
+                      {/* Finalis A (Sudut Merah) */}
                       <div
                         className={`p-2 rounded-xl flex flex-col items-center justify-center ${
                           grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId
@@ -1246,22 +1368,54 @@ export default function TvBracketPage() {
                             : 'bg-black/50 text-white'
                         }`}
                       >
-                        <span className="text-[10px] font-bold text-red-400 uppercase">SUDUT MERAH</span>
+                        {/* Foto Avatar Finalis A */}
+                        <div className="relative mb-1">
+                          <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-black/70 border-2 border-red-500/80 overflow-hidden flex items-center justify-center shadow-lg">
+                            {(() => {
+                              const photo = getParticipantPhoto(
+                                grandFinalMatch.participantA?.participantId,
+                                grandFinalMatch.participantA?.photo
+                              );
+                              if (photo) {
+                                return <img src={photo} alt="Finalis A" className="w-full h-full object-cover" />;
+                              }
+                              return (
+                                <div className="text-xl text-red-400 font-black select-none">
+                                  {grandFinalMatch.participantA?.participantId ? '☕' : '⚔️'}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-red-600 text-[8px] md:text-[9px] font-black text-white shadow uppercase border border-white/40">
+                            Merah
+                          </span>
+                        </div>
+
+                        <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider">SUDUT MERAH</span>
                         <span className="text-xs md:text-sm font-black truncate max-w-full">
                           {grandFinalMatch.participantA?.name ||
                             (semiLeftId && tournament.matches[semiLeftId]
                               ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiLeftId])}`
                               : 'Pemenang Semifinal 1')}
                         </span>
+                        {grandFinalMatch.participantA?.affiliation && (
+                          <span className="text-[9px] md:text-[10px] text-coffee-400 truncate max-w-full">
+                            {grandFinalMatch.participantA.affiliation}
+                          </span>
+                        )}
                         {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
-                          <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
+                          <span className="text-[9px] md:text-[10px] mt-0.5 font-black uppercase text-coffee-950 px-2 py-0.5 rounded-full bg-yellow-300 shadow">
+                            🏆 JUARA 1
+                          </span>
                         )}
                         {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
-                          <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
+                          <span className="text-[9px] md:text-[10px] mt-0.5 font-bold uppercase text-coffee-300 px-2 py-0.5 rounded-full bg-white/10">
+                            🥈 JUARA 2
+                          </span>
                         )}
                       </div>
 
-                      {/* Finalis B */}
+                      {/* Finalis B (Sudut Biru) */}
                       <div
                         className={`p-2 rounded-xl flex flex-col items-center justify-center ${
                           grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId
@@ -1269,18 +1423,50 @@ export default function TvBracketPage() {
                             : 'bg-black/50 text-white'
                         }`}
                       >
-                        <span className="text-[10px] font-bold text-blue-400 uppercase">SUDUT BIRU</span>
+                        {/* Foto Avatar Finalis B */}
+                        <div className="relative mb-1">
+                          <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-black/70 border-2 border-blue-500/80 overflow-hidden flex items-center justify-center shadow-lg">
+                            {(() => {
+                              const photo = getParticipantPhoto(
+                                grandFinalMatch.participantB?.participantId,
+                                grandFinalMatch.participantB?.photo
+                              );
+                              if (photo) {
+                                return <img src={photo} alt="Finalis B" className="w-full h-full object-cover" />;
+                              }
+                              return (
+                                <div className="text-xl text-blue-400 font-black select-none">
+                                  {grandFinalMatch.participantB?.participantId ? '☕' : '⚔️'}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <span className="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded-full bg-blue-600 text-[8px] md:text-[9px] font-black text-white shadow uppercase border border-white/40">
+                            Biru
+                          </span>
+                        </div>
+
+                        <span className="text-[9px] font-bold text-blue-400 uppercase tracking-wider">SUDUT BIRU</span>
                         <span className="text-xs md:text-sm font-black truncate max-w-full">
                           {grandFinalMatch.participantB?.name ||
                             (semiRightId && tournament.matches[semiRightId]
                               ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiRightId])}`
                               : 'Pemenang Semifinal 2')}
                         </span>
+                        {grandFinalMatch.participantB?.affiliation && (
+                          <span className="text-[9px] md:text-[10px] text-coffee-400 truncate max-w-full">
+                            {grandFinalMatch.participantB.affiliation}
+                          </span>
+                        )}
                         {grandFinalMatch.winnerId === grandFinalMatch.participantB?.participantId && (
-                          <span className="text-[10px] mt-0.5 font-black uppercase text-coffee-950">🏆 JUARA 1</span>
+                          <span className="text-[9px] md:text-[10px] mt-0.5 font-black uppercase text-coffee-950 px-2 py-0.5 rounded-full bg-yellow-300 shadow">
+                            🏆 JUARA 1
+                          </span>
                         )}
                         {grandFinalMatch.winnerId === grandFinalMatch.participantA?.participantId && (
-                          <span className="text-[10px] mt-0.5 font-bold uppercase text-coffee-400">🥈 JUARA 2</span>
+                          <span className="text-[9px] md:text-[10px] mt-0.5 font-bold uppercase text-coffee-300 px-2 py-0.5 rounded-full bg-white/10">
+                            🥈 JUARA 2
+                          </span>
                         )}
                       </div>
                     </div>
@@ -1306,7 +1492,7 @@ export default function TvBracketPage() {
                       }
                       setSelectedMatch(thirdPlaceMatch);
                     }}
-                    className={`rounded-2xl border-2 p-3 transition shadow-lg ${
+                    className={`rounded-2xl border-2 p-2 md:p-2.5 transition shadow-lg ${
                       tpPlayable ? 'cursor-pointer hover:scale-[1.01]' : 'cursor-not-allowed opacity-60'
                     } ${
                       thirdPlaceMatch.status === 'completed'
@@ -1316,17 +1502,17 @@ export default function TvBracketPage() {
                         : 'bg-[#150d08] border-coffee-900 text-coffee-500'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-amber-600/30">
+                    <div className="flex items-center justify-between mb-1 pb-1 border-b border-amber-600/30">
                       <div className="flex items-center gap-1.5 text-xs font-black text-amber-300">
                         <Medal className="w-3.5 h-3.5 text-amber-400" />
                         <span>PEREBUTAN JUARA 3 (BRONZE MATCH)</span>
                       </div>
                       {thirdPlaceMatch.status === 'completed' ? (
-                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
+                        <span className="text-[9px] md:text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-500 text-black">SELESAI</span>
                       ) : tpPlayable ? (
-                        <span className="text-[10px] font-bold text-amber-400">KLIK UNTUK TANDING</span>
+                        <span className="text-[9px] md:text-[10px] font-bold text-amber-400">KLIK UNTUK TANDING</span>
                       ) : (
-                        <span className="text-[10px] text-coffee-500">BELUM SIAP</span>
+                        <span className="text-[9px] md:text-[10px] text-coffee-500">BELUM SIAP</span>
                       )}
                     </div>
 
@@ -1338,7 +1524,21 @@ export default function TvBracketPage() {
                             : 'bg-black/50 text-white'
                         }`}
                       >
-                        <span className="text-[9px] font-bold text-red-400 uppercase">
+                        {/* Foto Kalah Semifinal 1 */}
+                        <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl bg-black/60 border border-amber-500/80 overflow-hidden flex items-center justify-center mb-1 shadow">
+                          {(() => {
+                            const photo = getParticipantPhoto(
+                              thirdPlaceMatch.participantA?.participantId,
+                              thirdPlaceMatch.participantA?.photo
+                            );
+                            if (photo) {
+                              return <img src={photo} alt="Bronze A" className="w-full h-full object-cover" />;
+                            }
+                            return <span className="text-base select-none">🥉</span>;
+                          })()}
+                        </div>
+
+                        <span className="text-[8px] md:text-[9px] font-bold text-red-400 uppercase">
                           {semiLeftId && tournament.matches[semiLeftId]
                             ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiLeftId]).toUpperCase()}`
                             : 'KALAH SEMIFINAL 1'}
@@ -1350,7 +1550,9 @@ export default function TvBracketPage() {
                               : 'Kalah Semifinal 1')}
                         </span>
                         {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantA?.participantId && (
-                          <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
+                          <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950 px-2 py-0.5 rounded-full bg-amber-300">
+                            🥉 JUARA 3
+                          </span>
                         )}
                       </div>
 
@@ -1361,7 +1563,21 @@ export default function TvBracketPage() {
                             : 'bg-black/50 text-white'
                         }`}
                       >
-                        <span className="text-[9px] font-bold text-blue-400 uppercase">
+                        {/* Foto Kalah Semifinal 2 */}
+                        <div className="w-9 h-9 md:w-11 md:h-11 rounded-xl bg-black/60 border border-amber-500/80 overflow-hidden flex items-center justify-center mb-1 shadow">
+                          {(() => {
+                            const photo = getParticipantPhoto(
+                              thirdPlaceMatch.participantB?.participantId,
+                              thirdPlaceMatch.participantB?.photo
+                            );
+                            if (photo) {
+                              return <img src={photo} alt="Bronze B" className="w-full h-full object-cover" />;
+                            }
+                            return <span className="text-base select-none">🥉</span>;
+                          })()}
+                        </div>
+
+                        <span className="text-[8px] md:text-[9px] font-bold text-blue-400 uppercase">
                           {semiRightId && tournament.matches[semiRightId]
                             ? `KALAH ${getMatchDisplayLabel(tournament.matches[semiRightId]).toUpperCase()}`
                             : 'KALAH SEMIFINAL 2'}
@@ -1373,7 +1589,9 @@ export default function TvBracketPage() {
                               : 'Kalah Semifinal 2')}
                         </span>
                         {thirdPlaceMatch.winnerId === thirdPlaceMatch.participantB?.participantId && (
-                          <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950">🥉 JUARA 3</span>
+                          <span className="text-[9px] mt-0.5 font-black uppercase text-coffee-950 px-2 py-0.5 rounded-full bg-amber-300">
+                            🥉 JUARA 3
+                          </span>
                         )}
                       </div>
                     </div>
@@ -1383,10 +1601,10 @@ export default function TvBracketPage() {
             </div>
 
             {/* Center Stage Footer Info */}
-            <div className="relative z-10 pt-1 text-center border-t border-gold-500/30">
-              <div className="text-[11px] font-bold text-gold-300 flex items-center justify-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-gold-400" />
-                <span>
+            <div className="relative z-10 pt-1 text-center border-t border-gold-500/30 shrink-0">
+              <div className="text-[10px] md:text-[11px] font-bold text-gold-300 flex items-center justify-center gap-1.5 truncate">
+                <Sparkles className="w-3.5 h-3.5 text-gold-400 shrink-0" />
+                <span className="truncate">
                   {semiLeftId && semiRightId && tournament.matches[semiLeftId] && tournament.matches[semiRightId]
                     ? `Pemenang ${getMatchDisplayLabel(tournament.matches[semiLeftId])} vs ${getMatchDisplayLabel(tournament.matches[semiRightId])} diadu untuk Juara 1 & 2 • Kalah untuk Juara 3`
                     : 'Pemenang Semifinal diadu untuk Juara 1 & 2 • Kalah untuk Juara 3'}
@@ -1395,37 +1613,37 @@ export default function TvBracketPage() {
             </div>
           </div>
 
-          {/* SAYAP KANAN (Cols 9-12) */}
-          <div className="col-span-4 flex items-stretch gap-3 h-full">
+          {/* SAYAP KANAN (Cols 9-12: 50% Semifinal 2 + 50% QF Kanan) */}
+          <div className="col-span-4 grid grid-cols-2 gap-2.5 md:gap-3 h-full min-h-0 overflow-hidden">
             {/* Column 3: Semifinal Kanan */}
-            <div className="flex-1 flex flex-col h-full bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2.5 shadow-xl">
-              <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-2 px-2 rounded-xl mb-2 font-black text-xs md:text-sm shadow">
+            <div className="flex flex-col h-full min-h-0 bg-[#180f0a]/90 rounded-2xl border border-gold-500/40 p-2 md:p-2.5 shadow-xl overflow-hidden">
+              <div className="text-center bg-gradient-to-r from-gold-500 via-amber-400 to-gold-600 text-coffee-950 uppercase py-1.5 px-2 rounded-xl mb-1.5 font-black text-xs md:text-sm shadow shrink-0">
                 <div>SEMIFINAL 2</div>
-                <div className="text-[10px] text-coffee-950/80 font-bold">
+                <div className="text-[9px] md:text-[10px] text-coffee-950/80 font-bold truncate">
                   {semiRightId && tournament.matches[semiRightId]
                     ? getMatchDisplayLabel(tournament.matches[semiRightId]).toUpperCase()
                     : 'SEMIFINAL 2'}
                 </div>
               </div>
-              <div className="flex-1 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
+              <div className="flex-1 min-h-0 flex flex-col justify-center gap-2 overflow-y-auto pr-1 column-scrollbar">
                 {semiRightId && renderMatchCard(tournament.matches[semiRightId], 'prominent')}
               </div>
             </div>
 
             {/* Column 4: Babak Perempat Final Kanan */}
-            <div className="flex-1 flex flex-col h-full bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2.5 shadow-xl">
-              <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-2 px-2.5 rounded-xl mb-2 font-black text-xs md:text-sm shadow flex items-center justify-between gap-1">
+            <div className="flex flex-col h-full min-h-0 bg-[#160e0a]/90 rounded-2xl border border-coffee-800 p-2 md:p-2.5 shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 text-coffee-950 uppercase py-1.5 px-2 rounded-xl mb-1.5 font-black text-xs md:text-sm shadow flex items-center justify-between gap-1 shrink-0">
                 <div className="text-left truncate">
-                  <div>{roundBabak3?.name ? `${roundBabak3.name} (KANAN)` : 'BABAK KANAN'}</div>
-                  <div className="text-[10px] text-coffee-950/80 font-bold">
+                  <div className="truncate font-black">{roundBabak3?.name ? `${roundBabak3.name} (KANAN)` : 'BABAK KANAN'}</div>
+                  <div className="text-[9px] md:text-[10px] text-coffee-950/80 font-bold">
                     {b3RightIds.length > 0 ? `${b3RightIds.length} BATTLE • PEREMPAT FINAL` : 'PEREMPAT FINAL'}
                   </div>
                 </div>
-                {qfRoundIndex >= 0 && (
+                {qfRoundIndex >= 0 && !isReadOnly && (
                   <button
                     type="button"
                     onClick={() => handleReshuffleRound(qfRoundIndex)}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black bg-coffee-950 text-gold-300 hover:bg-black hover:text-gold-200 border border-gold-400 shadow transition active:scale-95 shrink-0"
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] md:text-[10px] font-black bg-coffee-950 text-gold-300 hover:bg-black hover:text-gold-200 border border-gold-400 shadow transition active:scale-95 shrink-0"
                     title="Kocok Ulang Perempat Final"
                   >
                     <Shuffle className="w-3 h-3 text-gold-400" />
@@ -1433,7 +1651,7 @@ export default function TvBracketPage() {
                   </button>
                 )}
               </div>
-              <div className="flex-1 flex flex-col justify-around gap-2 overflow-y-auto pr-1 column-scrollbar">
+              <div className="flex-1 min-h-0 flex flex-col justify-around gap-1.5 overflow-y-auto pr-1 column-scrollbar">
                 {b3RightIds.map((mId) => renderMatchCard(tournament.matches[mId], 'normal'))}
               </div>
             </div>
@@ -1546,7 +1764,7 @@ export default function TvBracketPage() {
       {/* =========================================================================
           BOTTOM FOOTER BAR
       ========================================================================= */}
-      <footer className="w-full pt-2 border-t border-coffee-800/80 flex items-center justify-between">
+      <footer className="w-full pt-1.5 md:pt-2 border-t border-coffee-800/80 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 overflow-x-auto">
           <div className="px-3 py-1 rounded-lg bg-[#221610] text-gold-300 text-xs font-bold border border-gold-500/40">
             {tournament.participants?.length || 0} PESERTA
@@ -1616,6 +1834,14 @@ export default function TvBracketPage() {
               )}
             </div>
 
+            {/* Read Only Notice Banner */}
+            {isReadOnly && (
+              <div className="relative z-10 mb-4 p-3 rounded-2xl bg-blue-950/80 border border-blue-500/60 text-blue-200 text-xs font-bold text-center flex items-center justify-center gap-2">
+                <Eye className="w-4 h-4 text-blue-400" />
+                <span>Mode Penonton (View Only): Hanya perangkat Editor utama yang dapat menentukan pemenang pertandingan.</span>
+              </div>
+            )}
+
             {/* Match Label & Stage Info */}
             <div className="relative z-10 mb-6">
               <h3 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-gold-300 to-amber-400 tracking-tight drop-shadow mb-1">
@@ -1632,15 +1858,13 @@ export default function TvBracketPage() {
             {selectedMatch.participantB?.isBye ? (
               <div className="relative z-10 max-w-md mx-auto mb-6 bg-gradient-to-b from-amber-950/70 via-coffee-900 to-coffee-950 border-2 border-gold-400 rounded-3xl p-6 text-center shadow-2xl">
                 <div className="w-28 h-28 mx-auto rounded-full border-4 border-gold-400 overflow-hidden bg-black/60 mb-4 flex items-center justify-center shadow-lg">
-                  {selectedMatch.participantA?.photo ? (
-                    <img
-                      src={selectedMatch.participantA.photo}
-                      alt={selectedMatch.participantA.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-5xl">⚡</span>
-                  )}
+                  {(() => {
+                    const photo = getParticipantPhoto(selectedMatch.participantA?.participantId, selectedMatch.participantA?.photo);
+                    if (photo) {
+                      return <img src={photo} alt={selectedMatch.participantA?.name} className="w-full h-full object-cover" />;
+                    }
+                    return <span className="text-5xl">⚡</span>;
+                  })()}
                 </div>
 
                 <div className="text-2xl font-black text-white mb-1">
@@ -1650,37 +1874,41 @@ export default function TvBracketPage() {
                   {selectedMatch.participantA?.affiliation || '-'}
                 </div>
 
-                <div className="flex items-center justify-center gap-2 mb-6">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenSlotAssign(selectedMatch, 'A')}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-gold-500 hover:text-coffee-950 text-gold-300 text-xs font-bold transition flex items-center gap-1.5"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Edit Nama Peserta Ini</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenSlotAssign(selectedMatch, 'B')}
-                    className="px-3 py-1.5 rounded-xl bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white border border-blue-500/60 text-xs font-bold transition flex items-center gap-1.5 shadow"
-                  >
-                    <UserPlus className="w-3.5 h-3.5" />
-                    <span>➕ Isi Lawan (Adu Lagi)</span>
-                  </button>
-                </div>
+                {!isReadOnly && (
+                  <div className="flex items-center justify-center gap-2 mb-6">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSlotAssign(selectedMatch, 'A')}
+                      className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-gold-500 hover:text-coffee-950 text-gold-300 text-xs font-bold transition flex items-center gap-1.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit Nama Peserta Ini</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSlotAssign(selectedMatch, 'B')}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white border border-blue-500/60 text-xs font-bold transition flex items-center gap-1.5 shadow"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>➕ Isi Lawan (Adu Lagi)</span>
+                    </button>
+                  </div>
+                )}
 
                 <div className="pt-2 border-t border-coffee-800/80">
                   <button
-                    disabled={!selectedMatch.participantA?.participantId}
+                    disabled={!selectedMatch.participantA?.participantId || isReadOnly}
                     onClick={() => handleSelectWinner(selectedMatch, 'A')}
                     className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-coffee-950 font-black text-sm shadow-xl active:scale-95 transition disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <Sparkles className="w-4 h-4" />
-                    LOLOSKAN LANGSUNG (TANPA LAWAN)
+                    {isReadOnly ? 'HANYA EDITOR YANG DAPAT MEMILIH' : 'LOLOSKAN LANGSUNG (TANPA LAWAN)'}
                   </button>
-                  <p className="text-[11px] text-coffee-400 mt-2">
-                    💡 Atau klik &quot;➕ Isi Lawan (Adu Lagi)&quot; di atas untuk mengadu dengan peserta yang kalah sebelumnya.
-                  </p>
+                  {!isReadOnly && (
+                    <p className="text-[11px] text-coffee-400 mt-2">
+                      💡 Atau klik &quot;➕ Isi Lawan (Adu Lagi)&quot; di atas untuk mengadu dengan peserta yang kalah sebelumnya.
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1698,8 +1926,10 @@ export default function TvBracketPage() {
 
                 {/* RED CORNER (Sudut Merah) */}
                 <div
-                  onClick={() => handleSelectWinner(selectedMatch, 'A')}
-                  className="cursor-pointer group relative rounded-3xl bg-gradient-to-b from-[#2d120d] via-[#1c0c09] to-[#120705] border-2 border-red-500/80 hover:border-red-400 p-6 flex flex-col items-center transition-all duration-300 shadow-xl active:scale-95 animate-red-corner"
+                  onClick={() => !isReadOnly && handleSelectWinner(selectedMatch, 'A')}
+                  className={`${
+                    isReadOnly ? 'cursor-default' : 'cursor-pointer hover:border-red-400 active:scale-95'
+                  } group relative rounded-3xl bg-gradient-to-b from-[#2d120d] via-[#1c0c09] to-[#120705] border-2 border-red-500/80 p-6 flex flex-col items-center transition-all duration-300 shadow-xl animate-red-corner`}
                 >
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/90 border border-red-500 text-red-300 text-xs font-black uppercase tracking-wider mb-4 shadow-[0_0_12px_rgba(239,68,68,0.4)]">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
@@ -1709,15 +1939,19 @@ export default function TvBracketPage() {
                   <div className="relative mb-4">
                     <div className="absolute -inset-2 rounded-full border-2 border-red-500/60 animate-ping opacity-60 pointer-events-none" />
                     <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-red-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(239,68,68,0.6)] flex items-center justify-center">
-                      {selectedMatch.participantA?.photo ? (
-                        <img
-                          src={selectedMatch.participantA.photo}
-                          alt={selectedMatch.participantA.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
-                        />
-                      ) : (
-                        <span className="text-5xl">☕</span>
-                      )}
+                      {(() => {
+                        const photo = getParticipantPhoto(selectedMatch.participantA?.participantId, selectedMatch.participantA?.photo);
+                        if (photo) {
+                          return (
+                            <img
+                              src={photo}
+                              alt={selectedMatch.participantA?.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                            />
+                          );
+                        }
+                        return <span className="text-5xl">☕</span>;
+                      })()}
                     </div>
                     <div className="absolute -bottom-1 -right-1 bg-red-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
                       <Flame className="w-4 h-4 animate-bounce" />
@@ -1731,7 +1965,7 @@ export default function TvBracketPage() {
                     {selectedMatch.participantA?.affiliation || '-'}
                   </div>
 
-                  {selectedMatch.roundIndex <= 1 && (
+                  {selectedMatch.roundIndex <= 1 && !isReadOnly && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -1753,15 +1987,20 @@ export default function TvBracketPage() {
                     Sedang Bertanding
                   </div>
 
-                  <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2">
-                    <Award className="w-4 h-4" /> PILIH SEBAGAI PEMENANG
+                  <button
+                    disabled={isReadOnly}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Award className="w-4 h-4" /> {isReadOnly ? 'HANYA EDITOR YANG BISA MEMILIH' : 'PILIH SEBAGAI PEMENANG'}
                   </button>
                 </div>
 
                 {/* BLUE CORNER (Sudut Biru) */}
                 <div
-                  onClick={() => handleSelectWinner(selectedMatch, 'B')}
-                  className="cursor-pointer group relative rounded-3xl bg-gradient-to-b from-[#0f1d30] via-[#0b1422] to-[#060b14] border-2 border-blue-500/80 hover:border-blue-400 p-6 flex flex-col items-center transition-all duration-300 shadow-xl active:scale-95 animate-blue-corner"
+                  onClick={() => !isReadOnly && handleSelectWinner(selectedMatch, 'B')}
+                  className={`${
+                    isReadOnly ? 'cursor-default' : 'cursor-pointer hover:border-blue-400 active:scale-95'
+                  } group relative rounded-3xl bg-gradient-to-b from-[#0f1d30] via-[#0b1422] to-[#060b14] border-2 border-blue-500/80 p-6 flex flex-col items-center transition-all duration-300 shadow-xl animate-blue-corner`}
                 >
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/90 border border-blue-500 text-blue-300 text-xs font-black uppercase tracking-wider mb-4 shadow-[0_0_12px_rgba(59,130,246,0.4)]">
                     <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
@@ -1771,15 +2010,19 @@ export default function TvBracketPage() {
                   <div className="relative mb-4">
                     <div className="absolute -inset-2 rounded-full border-2 border-blue-500/60 animate-ping opacity-60 pointer-events-none" />
                     <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-blue-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(59,130,246,0.6)] flex items-center justify-center">
-                      {selectedMatch.participantB?.photo ? (
-                        <img
-                          src={selectedMatch.participantB.photo}
-                          alt={selectedMatch.participantB.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
-                        />
-                      ) : (
-                        <span className="text-5xl">☕</span>
-                      )}
+                      {(() => {
+                        const photo = getParticipantPhoto(selectedMatch.participantB?.participantId, selectedMatch.participantB?.photo);
+                        if (photo) {
+                          return (
+                            <img
+                              src={photo}
+                              alt={selectedMatch.participantB?.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                            />
+                          );
+                        }
+                        return <span className="text-5xl">☕</span>;
+                      })()}
                     </div>
                     <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
                       <Flame className="w-4 h-4 animate-bounce" />
@@ -1793,7 +2036,7 @@ export default function TvBracketPage() {
                     {selectedMatch.participantB?.affiliation || '-'}
                   </div>
 
-                  {selectedMatch.roundIndex <= 1 && (
+                  {selectedMatch.roundIndex <= 1 && !isReadOnly && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -1815,8 +2058,11 @@ export default function TvBracketPage() {
                     Sedang Bertanding
                   </div>
 
-                  <button className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2">
-                    <Award className="w-4 h-4" /> PILIH SEBAGAI PEMENANG
+                  <button
+                    disabled={isReadOnly}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 hover:from-gold-400 hover:to-amber-400 text-coffee-950 font-black text-xs md:text-sm tracking-wider uppercase shadow-[0_0_20px_rgba(234,179,8,0.4)] group-hover:shadow-[0_0_30px_rgba(234,179,8,0.8)] group-hover:scale-105 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Award className="w-4 h-4" /> {isReadOnly ? 'HANYA EDITOR YANG BISA MEMILIH' : 'PILIH SEBAGAI PEMENANG'}
                   </button>
                 </div>
               </div>

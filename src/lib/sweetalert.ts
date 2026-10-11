@@ -25,6 +25,8 @@ export interface ConfirmOptions {
   html?: string;
   confirmText?: string;
   cancelText?: string;
+  denyText?: string;
+  showDenyButton?: boolean;
   icon?: 'warning' | 'question' | 'info' | 'error' | 'success';
   isDanger?: boolean;
 }
@@ -94,6 +96,9 @@ export const showAlert = {
   /**
    * Confirmation Dialog (Returns true if confirmed, false otherwise)
    */
+  /**
+   * Confirmation Dialog (Returns true if confirmed, false otherwise)
+   */
   confirm: async ({
     title,
     text,
@@ -120,6 +125,41 @@ export const showAlert = {
       },
     });
     return res.isConfirmed;
+  },
+
+  /**
+   * Multi-choice prompt dialog (e.g. Takeover vs View-Only vs Cancel)
+   */
+  promptChoice: async ({
+    title,
+    html,
+    confirmText = 'Ambil Alih',
+    denyText = 'View Only',
+    cancelText = 'Batal',
+    icon = 'warning',
+  }: ConfirmOptions): Promise<'confirm' | 'deny' | 'cancel'> => {
+    const res = await coffeeSwal.fire({
+      title,
+      html,
+      icon,
+      showConfirmButton: true,
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      denyButtonText: denyText,
+      cancelButtonText: cancelText,
+      reverseButtons: true,
+      customClass: {
+        confirmButton: 'coffee-swal-danger-btn',
+        denyButton: 'coffee-swal-confirm',
+        cancelButton: 'coffee-swal-cancel',
+        actions: 'coffee-swal-actions',
+      },
+    });
+
+    if (res.isConfirmed) return 'confirm';
+    if (res.isDenied) return 'deny';
+    return 'cancel';
   },
 
   /**

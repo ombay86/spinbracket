@@ -18,11 +18,13 @@ import {
   Sparkles,
   Edit3,
   X,
+  Eye,
 } from 'lucide-react';
 import { clientDb, Tournament, Participant } from '@/lib/client-db';
 import { createDynamicBracket } from '@/lib/bracket-generator';
 import { showAlert } from '@/lib/sweetalert';
 import { useSessionGuard } from '@/hooks/useSessionGuard';
+import { compressImage } from '@/lib/image-utils';
 
 const sampleNames = [
   'Dimas Aditya', 'Siti Rahma', 'Budi Santoso', 'Rian Pratama',
@@ -55,6 +57,7 @@ export default function ParticipantSetupPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   // Form input for new participant
   const [newName, setNewName] = useState('');
@@ -85,6 +88,7 @@ export default function ParticipantSetupPage() {
 
   useEffect(() => {
     fetchTournament();
+    setIsReadOnly(clientDb.isReadOnly());
 
     clientDb.fetchTournamentByIdAsync(tournamentId).then((fresh) => {
       if (fresh) {
@@ -101,29 +105,58 @@ export default function ParticipantSetupPage() {
       }
     };
 
+    const handleViewModeChanged = (e: any) => {
+      setIsReadOnly(!!e.detail?.isReadOnly);
+    };
+
     window.addEventListener('spinbracket_data_synced', handleSynced);
-    return () => window.removeEventListener('spinbracket_data_synced', handleSynced);
+    window.addEventListener('spinbracket_view_mode_changed', handleViewModeChanged);
+    return () => {
+      window.removeEventListener('spinbracket_data_synced', handleSynced);
+      window.removeEventListener('spinbracket_view_mode_changed', handleViewModeChanged);
+    };
   }, [tournamentId]);
 
-  // Handle Photo upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, index?: number) => {
+  // Handle Photo upload with automatic downscale compression
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, index?: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
+    try {
+      const compressed = await compressImage(file, 240, 0.82);
       if (typeof index === 'number') {
         // Edit existing participant photo
-        setParticipants((prev) =>
-          prev.map((p, idx) => (idx === index ? { ...p, photo: base64 } : p))
-        );
+        const updatedList = participants.map((p, idx) => (idx === index ? { ...p, photo: compressed } : p));
+        setParticipants(updatedList);
+
+        // Immediate persistence to local DB so photos persist when navigating to TV or Wheel!
+        if (tournament) {
+          const targetId = participants[index]?.id;
+          const updatedMatches = { ...(tournament.matches || {}) };
+          Object.values(updatedMatches).forEach((m) => {
+            if (m.participantA?.participantId === targetId) {
+              m.participantA = { ...m.participantA, photo: compressed };
+            }
+            if (m.participantB?.participantId === targetId) {
+              m.participantB = { ...m.participantB, photo: compressed };
+            }
+          });
+          const updatedT: Tournament = {
+            ...tournament,
+            participants: updatedList,
+            matches: updatedMatches,
+            updatedAt: new Date().toISOString(),
+          };
+          clientDb.saveTournament(updatedT);
+          setTournament(updatedT);
+        }
       } else {
-        // Add new participant photo
-        setNewPhoto(base64);
+        // Add new participant photo preview
+        setNewPhoto(compressed);
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('Upload photo error:', err);
+    }
   };
 
   // Add single participant
@@ -138,15 +171,38 @@ export default function ParticipantSetupPage() {
       seed: participants.length + 1,
     };
 
-    setParticipants([...participants, newParticipant]);
+    const updated = [...participants, newParticipant];
+    setParticipants(updated);
     setNewName('');
     setNewAffiliation('');
     setNewPhoto('');
+
+    // Immediately persist to clientDb
+    if (tournament) {
+      const updatedT: Tournament = {
+        ...tournament,
+        participants: updated,
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedT);
+      setTournament(updatedT);
+    }
   };
 
   // Delete participant
   const handleDeleteParticipant = (id: string) => {
-    setParticipants(participants.filter((p) => p.id !== id));
+    const updated = participants.filter((p) => p.id !== id);
+    setParticipants(updated);
+
+    if (tournament) {
+      const updatedT: Tournament = {
+        ...tournament,
+        participants: updated,
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedT);
+      setTournament(updatedT);
+    }
   };
 
   // Open edit participant modal
@@ -158,14 +214,15 @@ export default function ParticipantSetupPage() {
   };
 
   // Handle edit photo upload
-  const handleEditPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEditPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setEditPhoto(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 240, 0.82);
+      setEditPhoto(compressed);
+    } catch (err) {
+      console.warn('Edit photo error:', err);
+    }
   };
 
   // Save edited participant
@@ -180,23 +237,21 @@ export default function ParticipantSetupPage() {
     const updatedAffiliation = editAffiliation.trim();
     const updatedPhoto = editPhoto;
 
-    setParticipants((prev) =>
-      prev.map((p) =>
-        p.id === editingParticipant.id
-          ? {
-              ...p,
-              name: updatedName,
-              affiliation: updatedAffiliation,
-              photo: updatedPhoto,
-            }
-          : p
-      )
+    const updatedParticipants = participants.map((p) =>
+      p.id === editingParticipant.id
+        ? {
+            ...p,
+            name: updatedName,
+            affiliation: updatedAffiliation,
+            photo: updatedPhoto,
+          }
+        : p
     );
+    setParticipants(updatedParticipants);
 
-    // If matches already exist in tournament, update participant details in matches as well
+    // Update both participant in matches and participants list in tournament DB
     if (tournament) {
       const updatedMatches = { ...tournament.matches };
-      let hasMatchChange = false;
       Object.values(updatedMatches).forEach((m) => {
         if (m.participantA?.participantId === editingParticipant.id) {
           m.participantA = {
@@ -205,7 +260,6 @@ export default function ParticipantSetupPage() {
             affiliation: updatedAffiliation,
             photo: updatedPhoto,
           };
-          hasMatchChange = true;
         }
         if (m.participantB?.participantId === editingParticipant.id) {
           m.participantB = {
@@ -214,19 +268,17 @@ export default function ParticipantSetupPage() {
             affiliation: updatedAffiliation,
             photo: updatedPhoto,
           };
-          hasMatchChange = true;
         }
       });
 
-      if (hasMatchChange) {
-        const updatedT: Tournament = {
-          ...tournament,
-          matches: updatedMatches,
-          updatedAt: new Date().toISOString(),
-        };
-        clientDb.saveTournament(updatedT);
-        setTournament(updatedT);
-      }
+      const updatedT: Tournament = {
+        ...tournament,
+        participants: updatedParticipants,
+        matches: updatedMatches,
+        updatedAt: new Date().toISOString(),
+      };
+      clientDb.saveTournament(updatedT);
+      setTournament(updatedT);
     }
 
     showAlert.success('Peserta Diperbarui', `Data "${updatedName}" berhasil diperbarui.`, 1800);
@@ -400,37 +452,56 @@ export default function ParticipantSetupPage() {
           </div>
         </div>
 
+        {/* View Only Banner */}
+        {isReadOnly && (
+          <div className="mb-6 p-4 rounded-2xl bg-blue-950/80 border border-blue-500/60 text-blue-200 text-sm font-bold flex flex-wrap items-center justify-between gap-3 shadow-lg">
+            <div className="flex items-center gap-2.5">
+              <Eye className="w-5 h-5 text-blue-400 shrink-0" />
+              <span>Mode Penonton (View Only): Perangkat ini hanya dapat melihat peserta. Hak mengedit dipegang oleh perangkat Editor utama.</span>
+            </div>
+            <Link
+              href={`/tournament/${tournamentId}/tv`}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition shadow"
+            >
+              Buka Layar TV 📺
+            </Link>
+          </div>
+        )}
+
         {/* Quick Presets Bar */}
-        <div className="mb-8 p-4 rounded-2xl bg-coffee-900/80 border border-coffee-800 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-coffee-300">
-            <Sparkles className="w-4 h-4 text-gold-400" />
-            <span>Shortcut Cepat:</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleLoad28Preset}
-              className="text-xs bg-gold-500/10 hover:bg-gold-500/20 text-gold-300 border border-gold-500/30 px-4 py-2 rounded-xl font-bold transition"
-            >
-              + Isi Otomatis 28 Peserta
-            </button>
-            <button
-              onClick={handleLoad16Preset}
-              className="text-xs bg-coffee-800 hover:bg-coffee-700 text-coffee-200 border border-coffee-700 px-4 py-2 rounded-xl font-bold transition"
-            >
-              + Isi Otomatis 16 Peserta
-            </button>
-            {participants.length > 0 && (
+        {!isReadOnly && (
+          <div className="mb-8 p-4 rounded-2xl bg-coffee-900/80 border border-coffee-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm text-coffee-300">
+              <Sparkles className="w-4 h-4 text-gold-400" />
+              <span>Shortcut Cepat:</span>
+            </div>
+            <div className="flex items-center gap-3">
               <button
-                onClick={handleClearAll}
-                className="text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 px-3 py-2 rounded-xl transition"
+                onClick={handleLoad28Preset}
+                className="text-xs bg-gold-500/10 hover:bg-gold-500/20 text-gold-300 border border-gold-500/30 px-4 py-2 rounded-xl font-bold transition"
               >
-                Hapus Semua
+                + Isi Otomatis 28 Peserta
               </button>
-            )}
+              <button
+                onClick={handleLoad16Preset}
+                className="text-xs bg-coffee-800 hover:bg-coffee-700 text-coffee-200 border border-coffee-700 px-4 py-2 rounded-xl font-bold transition"
+              >
+                + Isi Otomatis 16 Peserta
+              </button>
+              {participants.length > 0 && (
+                <button
+                  onClick={handleClearAll}
+                  className="text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 px-3 py-2 rounded-xl transition"
+                >
+                  Hapus Semua
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Add Participant Input Section */}
+        {!isReadOnly && (
         <div className="mb-10 p-6 rounded-3xl bg-coffee-900 border border-gold-500/40 shadow-xl">
           <h2 className="text-lg font-black text-gold-300 mb-4 flex items-center gap-2">
             <Plus className="w-5 h-5" /> Tambah Peserta Baru
@@ -505,6 +576,7 @@ export default function ParticipantSetupPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Participant List */}
         <div>

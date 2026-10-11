@@ -35,11 +35,13 @@ export function useSessionGuard() {
           }),
         });
 
-        // ONLY kick out if server explicitly reports SESSION_TAKEN_OVER
+        // ONLY kick out if server explicitly reports SESSION_TAKEN_OVER AND device is not in View-Only mode
         if (res.ok) {
           const data = await res.json().catch(() => ({}));
           if (data && data.valid === false && data.reason === 'SESSION_TAKEN_OVER') {
-            handleSessionTakenOver();
+            if (!clientDb.isReadOnly()) {
+              handleSessionTakenOver();
+            }
           }
         }
       } catch (err) {
