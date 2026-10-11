@@ -147,23 +147,26 @@ export default function TvBracketPage() {
   const [battleSeconds, setBattleSeconds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(true);
 
-  // Auto start and reset timer when selectedMatch opens
+  // 3-Way Live Duel Battle Modal State (Live Stage Modal with 3 Corners)
+  const [show3WayLiveBattleModal, setShow3WayLiveBattleModal] = useState(false);
+
+  // Auto start and reset timer when selectedMatch or 3-way battle modal opens
   useEffect(() => {
-    if (selectedMatch) {
+    if (selectedMatch || show3WayLiveBattleModal) {
       setBattleSeconds(0);
       setIsTimerRunning(true);
     }
-  }, [selectedMatch?.id]);
+  }, [selectedMatch?.id, show3WayLiveBattleModal]);
 
   useEffect(() => {
     let interval: any;
-    if (selectedMatch && isTimerRunning) {
+    if ((selectedMatch || show3WayLiveBattleModal) && isTimerRunning) {
       interval = setInterval(() => {
         setBattleSeconds((prev) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [selectedMatch, isTimerRunning]);
+  }, [selectedMatch, show3WayLiveBattleModal, isTimerRunning]);
 
   const formatTimer = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
@@ -1651,7 +1654,10 @@ export default function TvBracketPage() {
                   const blueFinalist = slots.blue;
 
                   return (
-                    <div className="flex-1 min-h-0 flex flex-col justify-between p-2 md:p-3 rounded-2xl bg-gradient-to-b from-[#2a170c] via-[#1a0e07] to-[#140b05] border-2 border-gold-500 shadow-[0_0_35px_rgba(234,179,8,0.4)]">
+                    <div
+                      onClick={() => setShow3WayLiveBattleModal(true)}
+                      className="flex-1 min-h-0 flex flex-col justify-between p-2 md:p-3 rounded-2xl bg-gradient-to-b from-[#2a170c] via-[#1a0e07] to-[#140b05] border-2 border-gold-500 shadow-[0_0_35px_rgba(234,179,8,0.4)] cursor-pointer hover:border-gold-300 transition duration-300 group"
+                    >
                       {/* Top Header Tri-Battle */}
                       <div className="flex items-center justify-between pb-1.5 border-b border-gold-500/30 shrink-0">
                         <div className="flex items-center gap-1.5">
@@ -1660,15 +1666,12 @@ export default function TvBracketPage() {
                             GRAND FINAL • 3 BESAR SEKALIGUS
                           </span>
                         </div>
-                        {isDecided ? (
-                          <span className="text-[9px] md:text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500 text-black shadow">
-                            HASIL DISAHKAN
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] md:text-[10px] font-black px-2 py-0.5 rounded bg-gradient-to-r from-yellow-400 to-amber-500 text-coffee-950 shadow flex items-center gap-1">
+                            <Swords className="w-3 h-3" />
+                            <span>KLIK BUKA ARENA BATTLE</span>
                           </span>
-                        ) : (
-                          <span className="text-[9px] md:text-[10px] font-black px-2 py-0.5 rounded bg-amber-500 text-coffee-950 shadow animate-pulse">
-                            3-WAY BATTLE LIVE
-                          </span>
-                        )}
+                        </div>
                       </div>
 
                       {/* 3 Contender Slots: Red (Kiri) - Yellow/Gold (Tengah) - Blue (Kanan) */}
@@ -2627,6 +2630,398 @@ export default function TvBracketPage() {
               >
                 Kembali ke Bagan Turnamen
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          LIVE MATCH ARENA MODAL: 3-WAY BATTLE (FINAL 3 PESERTA LANGSUNG)
+          Desain persis seperti Live Match 2 peserta tapi dengan 3 Sudut (Merah - Kuning - Biru)
+      ========================================================================= */}
+      {show3WayLiveBattleModal && tournament && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 md:p-6 animate-in fade-in duration-300">
+          <div className="relative bg-gradient-to-b from-[#1e130c] via-[#140c07] to-[#0c0806] border-2 border-gold-500/90 rounded-[2.5rem] p-6 md:p-8 max-w-6xl w-full shadow-[0_0_80px_rgba(234,179,8,0.35)] text-center overflow-hidden">
+            {/* Ambient Lighting Gradients */}
+            <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-red-600/15 blur-3xl pointer-events-none" />
+            <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
+            <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
+
+            {/* Top Bar: Live Indicator & Match Duration Stopwatch */}
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-coffee-800/80 pb-4">
+              <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-red-950/80 border border-red-500/90 text-red-200 text-xs font-black uppercase tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-live-pulse">
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                LIVE MATCH • BABAK FINAL 3 PESERTA
+              </div>
+
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 border border-gold-500/40 text-xs shadow-inner">
+                <Timer className="w-4 h-4 text-gold-400 animate-pulse" />
+                <span className="text-[11px] font-bold text-coffee-300 uppercase tracking-wider">Durasi Sesi:</span>
+                <span className="font-mono font-black text-base text-gold-300 tracking-wider">
+                  {formatTimer(battleSeconds)}
+                </span>
+                <button
+                  onClick={() => setIsTimerRunning(!isTimerRunning)}
+                  className="p-1 rounded-md hover:bg-gold-500/20 text-gold-400 transition"
+                  title={isTimerRunning ? 'Jeda Timer' : 'Lanjutkan Timer'}
+                >
+                  {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => setBattleSeconds(0)}
+                  className="p-1 rounded-md hover:bg-gold-500/20 text-coffee-400 hover:text-gold-400 transition"
+                  title="Reset Timer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Read Only Notice Banner */}
+            {isReadOnly && (
+              <div className="relative z-10 mb-4 p-3 rounded-2xl bg-blue-950/80 border border-blue-500/60 text-blue-200 text-xs font-bold text-center flex items-center justify-center gap-2">
+                <Eye className="w-4 h-4 text-blue-400" />
+                <span>Mode Penonton (View Only): Hanya perangkat Editor utama yang dapat menentukan pemenang pertandingan.</span>
+              </div>
+            )}
+
+            {/* Match Label & Stage Info */}
+            <div className="relative z-10 mb-6">
+              <h3 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-100 via-gold-300 to-amber-400 tracking-tight drop-shadow mb-1">
+                Grand Final 3 Besar
+              </h3>
+              <p className="text-xs md:text-sm text-coffee-300 font-medium">
+                Sesi tanding 3 peserta sedang berlangsung di panggung. Klik tombol juara pada masing-masing peserta untuk menentukan urutan pemenang saat penilaian juri selesai.
+              </p>
+            </div>
+
+            {/* 3-Corner Arena Duel Grid (Red - Gold/Yellow - Blue) */}
+            {(() => {
+              const slots = tournament.final3Way?.slots || {};
+              const ranks = tournament.final3Way?.ranks || {};
+
+              const redContender = slots.red;
+              const yellowContender = slots.yellow;
+              const blueContender = slots.blue;
+
+              return (
+                <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch mb-6">
+                  {/* =========================================================
+                      1. SUDUT MERAH (RED CORNER)
+                  ========================================================= */}
+                  <div className="relative rounded-3xl bg-gradient-to-b from-[#2d120d] via-[#1c0c09] to-[#120705] border-2 border-red-500/80 p-5 flex flex-col items-center justify-between transition-all duration-300 shadow-xl animate-red-corner">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/90 border border-red-500 text-red-300 text-xs font-black uppercase tracking-wider mb-3 shadow-[0_0_12px_rgba(239,68,68,0.4)]">
+                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                      SUDUT MERAH
+                    </div>
+
+                    <div className="relative mb-3">
+                      <div className="absolute -inset-2 rounded-full border-2 border-red-500/60 animate-ping opacity-60 pointer-events-none" />
+                      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-red-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(239,68,68,0.6)] flex items-center justify-center">
+                        {redContender?.photo ? (
+                          <img
+                            src={redContender.photo}
+                            alt={redContender.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-5xl">☕</span>
+                        )}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 bg-red-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
+                        <Flame className="w-4 h-4 animate-bounce" />
+                      </div>
+                    </div>
+
+                    <div className="text-xl font-black text-white mb-0.5 text-center line-clamp-1">
+                      {redContender?.name || 'Slot Merah'}
+                    </div>
+                    <div className="text-xs text-coffee-300 mb-2 text-center font-medium line-clamp-1">
+                      {redContender?.affiliation || '-'}
+                    </div>
+
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpen3WaySlotModal('red')}
+                        className="mb-3 px-3 py-1 rounded-lg bg-red-950/80 hover:bg-red-900 border border-red-500/60 text-red-200 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Ganti Peserta Ini</span>
+                      </button>
+                    )}
+
+                    <div className="mb-3 inline-flex items-center gap-2 text-[11px] font-bold text-red-400 bg-red-950/70 px-3 py-0.5 rounded-full border border-red-800/80">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                      </span>
+                      Sedang Bertanding
+                    </div>
+
+                    {/* Rank Assignment Buttons for Red */}
+                    <div className="w-full space-y-1.5 pt-2 border-t border-coffee-800/80">
+                      <button
+                        disabled={isReadOnly || !redContender?.id}
+                        onClick={() => handleAssign3WayRank(redContender!.id, 1)}
+                        className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 shadow ${
+                          ranks.firstId === redContender?.id
+                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.8)]'
+                            : 'bg-gold-500 hover:bg-gold-400 text-coffee-950'
+                        }`}
+                      >
+                        <Trophy className="w-4 h-4" />
+                        <span>{ranks.firstId === redContender?.id ? '🏆 JUARA 1 (TERPILIH)' : 'PILIH JUARA 1'}</span>
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          disabled={isReadOnly || !redContender?.id}
+                          onClick={() => handleAssign3WayRank(redContender!.id, 2)}
+                          className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
+                            ranks.secondId === redContender?.id
+                              ? 'bg-slate-200 text-slate-950 ring-2 ring-white'
+                              : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                          }`}
+                        >
+                          <span>🥈 Juara 2</span>
+                        </button>
+
+                        <button
+                          disabled={isReadOnly || !redContender?.id}
+                          onClick={() => handleAssign3WayRank(redContender!.id, 3)}
+                          className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
+                            ranks.thirdId === redContender?.id
+                              ? 'bg-amber-600 text-white ring-2 ring-white'
+                              : 'bg-white/10 hover:bg-white/20 text-amber-400'
+                          }`}
+                        >
+                          <span>🥉 Juara 3</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* =========================================================
+                      2. SUDUT KUNING / EMAS (YELLOW/GOLD CORNER - TENGAH)
+                  ========================================================= */}
+                  <div className="relative rounded-3xl bg-gradient-to-b from-[#2e1c0c] via-[#1d1208] to-[#120b05] border-2 border-amber-400 p-5 flex flex-col items-center justify-between transition-all duration-300 shadow-[0_0_30px_rgba(234,179,8,0.4)] animate-vs-glow">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/90 border border-amber-400 text-amber-300 text-xs font-black uppercase tracking-wider mb-3 shadow-[0_0_12px_rgba(234,179,8,0.5)]">
+                      <Crown className="w-3.5 h-3.5 text-amber-300 animate-crown" />
+                      SUDUT KUNING / EMAS
+                    </div>
+
+                    <div className="relative mb-3">
+                      <div className="absolute -inset-2 rounded-full border-2 border-amber-400/60 animate-ping opacity-60 pointer-events-none" />
+                      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-amber-300 overflow-hidden bg-black/60 shadow-[0_0_40px_rgba(234,179,8,0.7)] flex items-center justify-center">
+                        {yellowContender?.photo ? (
+                          <img
+                            src={yellowContender.photo}
+                            alt={yellowContender.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-5xl">👑</span>
+                        )}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 bg-amber-500 text-coffee-950 p-2 rounded-full border-2 border-black shadow-lg font-black">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <div className="text-xl font-black text-amber-200 mb-0.5 text-center line-clamp-1">
+                      {yellowContender?.name || 'Slot Kuning'}
+                    </div>
+                    <div className="text-xs text-coffee-300 mb-2 text-center font-medium line-clamp-1">
+                      {yellowContender?.affiliation || '-'}
+                    </div>
+
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpen3WaySlotModal('yellow')}
+                        className="mb-3 px-3 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900 border border-amber-500/60 text-amber-200 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Ganti Peserta Ini</span>
+                      </button>
+                    )}
+
+                    <div className="mb-3 inline-flex items-center gap-2 text-[11px] font-bold text-amber-300 bg-amber-950/70 px-3 py-0.5 rounded-full border border-amber-800/80">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                      </span>
+                      Sedang Bertanding
+                    </div>
+
+                    {/* Rank Assignment Buttons for Yellow */}
+                    <div className="w-full space-y-1.5 pt-2 border-t border-coffee-800/80">
+                      <button
+                        disabled={isReadOnly || !yellowContender?.id}
+                        onClick={() => handleAssign3WayRank(yellowContender!.id, 1)}
+                        className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 shadow ${
+                          ranks.firstId === yellowContender?.id
+                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.8)]'
+                            : 'bg-gold-500 hover:bg-gold-400 text-coffee-950'
+                        }`}
+                      >
+                        <Trophy className="w-4 h-4" />
+                        <span>{ranks.firstId === yellowContender?.id ? '🏆 JUARA 1 (TERPILIH)' : 'PILIH JUARA 1'}</span>
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          disabled={isReadOnly || !yellowContender?.id}
+                          onClick={() => handleAssign3WayRank(yellowContender!.id, 2)}
+                          className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
+                            ranks.secondId === yellowContender?.id
+                              ? 'bg-slate-200 text-slate-950 ring-2 ring-white'
+                              : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                          }`}
+                        >
+                          <span>🥈 Juara 2</span>
+                        </button>
+
+                        <button
+                          disabled={isReadOnly || !yellowContender?.id}
+                          onClick={() => handleAssign3WayRank(yellowContender!.id, 3)}
+                          className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
+                            ranks.thirdId === yellowContender?.id
+                              ? 'bg-amber-600 text-white ring-2 ring-white'
+                              : 'bg-white/10 hover:bg-white/20 text-amber-400'
+                          }`}
+                        >
+                          <span>🥉 Juara 3</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* =========================================================
+                      3. SUDUT BIRU (BLUE CORNER)
+                  ========================================================= */}
+                  <div className="relative rounded-3xl bg-gradient-to-b from-[#0f1d30] via-[#0b1422] to-[#060b14] border-2 border-blue-500/80 p-5 flex flex-col items-center justify-between transition-all duration-300 shadow-xl animate-blue-corner">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-950/90 border border-blue-500 text-blue-300 text-xs font-black uppercase tracking-wider mb-3 shadow-[0_0_12px_rgba(59,130,246,0.4)]">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                      SUDUT BIRU
+                    </div>
+
+                    <div className="relative mb-3">
+                      <div className="absolute -inset-2 rounded-full border-2 border-blue-500/60 animate-ping opacity-60 pointer-events-none" />
+                      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-blue-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(59,130,246,0.6)] flex items-center justify-center">
+                        {blueContender?.photo ? (
+                          <img
+                            src={blueContender.photo}
+                            alt={blueContender.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-5xl">☕</span>
+                        )}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-2 rounded-full border-2 border-black shadow-lg">
+                        <Flame className="w-4 h-4 animate-bounce" />
+                      </div>
+                    </div>
+
+                    <div className="text-xl font-black text-white mb-0.5 text-center line-clamp-1">
+                      {blueContender?.name || 'Slot Biru'}
+                    </div>
+                    <div className="text-xs text-coffee-300 mb-2 text-center font-medium line-clamp-1">
+                      {blueContender?.affiliation || '-'}
+                    </div>
+
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpen3WaySlotModal('blue')}
+                        className="mb-3 px-3 py-1 rounded-lg bg-blue-950/80 hover:bg-blue-900 border border-blue-500/60 text-blue-200 text-xs font-semibold flex items-center gap-1.5 transition active:scale-95"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Ganti Peserta Ini</span>
+                      </button>
+                    )}
+
+                    <div className="mb-3 inline-flex items-center gap-2 text-[11px] font-bold text-blue-400 bg-blue-950/70 px-3 py-0.5 rounded-full border border-blue-800/80">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                      </span>
+                      Sedang Bertanding
+                    </div>
+
+                    {/* Rank Assignment Buttons for Blue */}
+                    <div className="w-full space-y-1.5 pt-2 border-t border-coffee-800/80">
+                      <button
+                        disabled={isReadOnly || !blueContender?.id}
+                        onClick={() => handleAssign3WayRank(blueContender!.id, 1)}
+                        className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 shadow ${
+                          ranks.firstId === blueContender?.id
+                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.8)]'
+                            : 'bg-gold-500 hover:bg-gold-400 text-coffee-950'
+                        }`}
+                      >
+                        <Trophy className="w-4 h-4" />
+                        <span>{ranks.firstId === blueContender?.id ? '🏆 JUARA 1 (TERPILIH)' : 'PILIH JUARA 1'}</span>
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          disabled={isReadOnly || !blueContender?.id}
+                          onClick={() => handleAssign3WayRank(blueContender!.id, 2)}
+                          className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
+                            ranks.secondId === blueContender?.id
+                              ? 'bg-slate-200 text-slate-950 ring-2 ring-white'
+                              : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                          }`}
+                        >
+                          <span>🥈 Juara 2</span>
+                        </button>
+
+                        <button
+                          disabled={isReadOnly || !blueContender?.id}
+                          onClick={() => handleAssign3WayRank(blueContender!.id, 3)}
+                          className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
+                            ranks.thirdId === blueContender?.id
+                              ? 'bg-amber-600 text-white ring-2 ring-white'
+                              : 'bg-white/10 hover:bg-white/20 text-amber-400'
+                          }`}
+                        >
+                          <span>🥉 Juara 3</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Bottom Actions: Sahkan Juara & Kembali */}
+            <div className="relative z-10 pt-3 border-t border-coffee-800 flex items-center justify-between gap-3">
+              <button
+                onClick={() => setShow3WayLiveBattleModal(false)}
+                className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition active:scale-95"
+              >
+                Kembali ke Bagan Turnamen
+              </button>
+
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleSave3WayRanks();
+                    setShow3WayLiveBattleModal(false);
+                  }}
+                  className="px-8 py-3 rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 text-coffee-950 font-black text-xs md:text-sm shadow-[0_0_25px_rgba(234,179,8,0.6)] transition active:scale-95 flex items-center gap-2"
+                >
+                  <Crown className="w-4 h-4 text-coffee-950" />
+                  <span>SAHKAN & SELESAIKAN TURNAMEN 🏆</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
