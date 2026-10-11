@@ -2808,15 +2808,15 @@ export default function TvBracketPage() {
                   {/* =========================================================
                       2. SUDUT KUNING / EMAS (YELLOW/GOLD CORNER - TENGAH)
                   ========================================================= */}
-                  <div className="relative rounded-3xl bg-gradient-to-b from-[#2e1c0c] via-[#1d1208] to-[#120b05] border-2 border-amber-400 p-5 flex flex-col items-center justify-between transition-all duration-300 shadow-[0_0_30px_rgba(234,179,8,0.4)] animate-vs-glow">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/90 border border-amber-400 text-amber-300 text-xs font-black uppercase tracking-wider mb-3 shadow-[0_0_12px_rgba(234,179,8,0.5)]">
-                      <Crown className="w-3.5 h-3.5 text-amber-300 animate-crown" />
-                      SUDUT KUNING / EMAS
+                  <div className="relative rounded-3xl bg-gradient-to-b from-[#2e1d0d] via-[#1d1208] to-[#120b05] border-2 border-amber-500/80 p-5 flex flex-col items-center justify-between transition-all duration-300 shadow-xl animate-vs-glow">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/90 border border-amber-500 text-amber-300 text-xs font-black uppercase tracking-wider mb-3 shadow-[0_0_12px_rgba(245,158,11,0.4)]">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                      SUDUT KUNING
                     </div>
 
                     <div className="relative mb-3">
-                      <div className="absolute -inset-2 rounded-full border-2 border-amber-400/60 animate-ping opacity-60 pointer-events-none" />
-                      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-amber-300 overflow-hidden bg-black/60 shadow-[0_0_40px_rgba(234,179,8,0.7)] flex items-center justify-center">
+                      <div className="absolute -inset-2 rounded-full border-2 border-amber-500/60 animate-ping opacity-60 pointer-events-none" />
+                      <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-amber-500 overflow-hidden bg-black/60 shadow-[0_0_35px_rgba(245,158,11,0.6)] flex items-center justify-center">
                         {yellowContender?.photo ? (
                           <img
                             src={yellowContender.photo}
@@ -2824,11 +2824,11 @@ export default function TvBracketPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <span className="text-5xl">👑</span>
+                          <span className="text-5xl">☕</span>
                         )}
                       </div>
-                      <div className="absolute -bottom-1 -right-1 bg-amber-500 text-coffee-950 p-2 rounded-full border-2 border-black shadow-lg font-black">
-                        <Sparkles className="w-4 h-4" />
+                      <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white p-2 rounded-full border-2 border-black shadow-lg">
+                        <Flame className="w-4 h-4 animate-bounce" />
                       </div>
                     </div>
 
