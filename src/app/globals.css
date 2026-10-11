@@ -136,6 +136,21 @@ body {
   animation: blueCornerGlow 2s infinite ease-in-out;
 }
 
+@keyframes yellowCornerGlow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
+    border-color: rgba(245, 158, 11, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(245, 158, 11, 0.65);
+    border-color: rgba(245, 158, 11, 0.95);
+  }
+}
+
+.animate-yellow-corner {
+  animation: yellowCornerGlow 2s infinite ease-in-out;
+}
+
 /* =========================================================================
    COFFEEBREW SWEETALERT2 LUXURY THEME
 ========================================================================= */

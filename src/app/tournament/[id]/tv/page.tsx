@@ -2806,9 +2806,9 @@ export default function TvBracketPage() {
                   </div>
 
                   {/* =========================================================
-                      2. SUDUT KUNING / EMAS (YELLOW/GOLD CORNER - TENGAH)
+                      2. SUDUT KUNING (YELLOW CORNER - TENGAH)
                   ========================================================= */}
-                  <div className="relative rounded-3xl bg-gradient-to-b from-[#2e1d0d] via-[#1d1208] to-[#120b05] border-2 border-amber-500/80 p-5 flex flex-col items-center justify-between transition-all duration-300 shadow-xl animate-vs-glow">
+                  <div className="relative rounded-3xl bg-gradient-to-b from-[#2e1d0d] via-[#1d1208] to-[#120b05] border-2 border-amber-500/80 p-5 flex flex-col items-center justify-between transition-all duration-300 shadow-xl animate-yellow-corner">
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/90 border border-amber-500 text-amber-300 text-xs font-black uppercase tracking-wider mb-3 shadow-[0_0_12px_rgba(245,158,11,0.4)]">
                       <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
                       SUDUT KUNING
