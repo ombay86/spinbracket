@@ -1046,6 +1046,17 @@ export default function TvBracketPage() {
     setShow3WayModal(true);
   };
 
+  const handleOpen3WayLiveBattleModal = () => {
+    if (!tournament) return;
+    const currentRanks = tournament.final3Way?.ranks || {};
+    setTempRanks3Way({
+      firstId: currentRanks.firstId || tournament.winners?.first?.id || null,
+      secondId: currentRanks.secondId || tournament.winners?.second?.id || null,
+      thirdId: currentRanks.thirdId || tournament.winners?.third?.id || null,
+    });
+    setShow3WayLiveBattleModal(true);
+  };
+
   const handleAssign3WayRank = (participantId: string, rank: 1 | 2 | 3) => {
     setTempRanks3Way((prev) => {
       const next = { ...prev };
@@ -1114,6 +1125,7 @@ export default function TvBracketPage() {
     clientDb.saveTournament(updated);
     setTournament(updated);
     setShow3WayModal(false);
+    setShow3WayLiveBattleModal(false);
 
     // Trigger celebration
     if (firstP) {
@@ -1655,7 +1667,7 @@ export default function TvBracketPage() {
 
                   return (
                     <div
-                      onClick={() => setShow3WayLiveBattleModal(true)}
+                      onClick={handleOpen3WayLiveBattleModal}
                       className="flex-1 min-h-0 flex flex-col justify-between p-2 md:p-3 rounded-2xl bg-gradient-to-b from-[#2a170c] via-[#1a0e07] to-[#140b05] border-2 border-gold-500 shadow-[0_0_35px_rgba(234,179,8,0.4)] cursor-pointer hover:border-gold-300 transition duration-300 group"
                     >
                       {/* Top Header Tri-Battle */}
@@ -2701,7 +2713,7 @@ export default function TvBracketPage() {
             {/* 3-Corner Arena Duel Grid (Red - Gold/Yellow - Blue) */}
             {(() => {
               const slots = tournament.final3Way?.slots || {};
-              const ranks = tournament.final3Way?.ranks || {};
+              const ranks = tempRanks3Way;
 
               const redContender = slots.red;
               const yellowContender = slots.yellow;
@@ -2765,41 +2777,56 @@ export default function TvBracketPage() {
                     {/* Rank Assignment Buttons for Red */}
                     <div className="w-full space-y-1.5 pt-2 border-t border-coffee-800/80">
                       <button
+                        type="button"
                         disabled={isReadOnly || !redContender?.id}
-                        onClick={() => handleAssign3WayRank(redContender!.id, 1)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAssign3WayRank(redContender!.id, 1);
+                        }}
                         className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 shadow ${
                           ranks.firstId === redContender?.id
-                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.8)]'
-                            : 'bg-gold-500 hover:bg-gold-400 text-coffee-950'
+                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.9)]'
+                            : 'bg-yellow-500/10 hover:bg-yellow-500/25 text-yellow-300 border border-yellow-500/40'
                         }`}
                       >
                         <Trophy className="w-4 h-4" />
                         <span>{ranks.firstId === redContender?.id ? '🏆 JUARA 1 (TERPILIH)' : 'PILIH JUARA 1'}</span>
+                        {ranks.firstId === redContender?.id && <Check className="w-4 h-4" />}
                       </button>
 
                       <div className="grid grid-cols-2 gap-1.5">
                         <button
+                          type="button"
                           disabled={isReadOnly || !redContender?.id}
-                          onClick={() => handleAssign3WayRank(redContender!.id, 2)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAssign3WayRank(redContender!.id, 2);
+                          }}
                           className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
                             ranks.secondId === redContender?.id
-                              ? 'bg-slate-200 text-slate-950 ring-2 ring-white'
-                              : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                              ? 'bg-gradient-to-r from-slate-100 to-slate-300 text-slate-950 ring-2 ring-white scale-105 shadow-[0_0_15px_rgba(255,255,255,0.7)]'
+                              : 'bg-white/5 hover:bg-white/15 text-slate-300 border border-slate-400/30'
                           }`}
                         >
                           <span>🥈 Juara 2</span>
+                          {ranks.secondId === redContender?.id && <Check className="w-3.5 h-3.5" />}
                         </button>
 
                         <button
+                          type="button"
                           disabled={isReadOnly || !redContender?.id}
-                          onClick={() => handleAssign3WayRank(redContender!.id, 3)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAssign3WayRank(redContender!.id, 3);
+                          }}
                           className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
                             ranks.thirdId === redContender?.id
-                              ? 'bg-amber-600 text-white ring-2 ring-white'
-                              : 'bg-white/10 hover:bg-white/20 text-amber-400'
+                              ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white ring-2 ring-white scale-105 shadow-[0_0_15px_rgba(217,119,6,0.7)]'
+                              : 'bg-white/5 hover:bg-white/15 text-amber-400 border border-amber-600/30'
                           }`}
                         >
                           <span>🥉 Juara 3</span>
+                          {ranks.thirdId === redContender?.id && <Check className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
@@ -2861,41 +2888,56 @@ export default function TvBracketPage() {
                     {/* Rank Assignment Buttons for Yellow */}
                     <div className="w-full space-y-1.5 pt-2 border-t border-coffee-800/80">
                       <button
+                        type="button"
                         disabled={isReadOnly || !yellowContender?.id}
-                        onClick={() => handleAssign3WayRank(yellowContender!.id, 1)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAssign3WayRank(yellowContender!.id, 1);
+                        }}
                         className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 shadow ${
                           ranks.firstId === yellowContender?.id
-                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.8)]'
-                            : 'bg-gold-500 hover:bg-gold-400 text-coffee-950'
+                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.9)]'
+                            : 'bg-yellow-500/10 hover:bg-yellow-500/25 text-yellow-300 border border-yellow-500/40'
                         }`}
                       >
                         <Trophy className="w-4 h-4" />
                         <span>{ranks.firstId === yellowContender?.id ? '🏆 JUARA 1 (TERPILIH)' : 'PILIH JUARA 1'}</span>
+                        {ranks.firstId === yellowContender?.id && <Check className="w-4 h-4" />}
                       </button>
 
                       <div className="grid grid-cols-2 gap-1.5">
                         <button
+                          type="button"
                           disabled={isReadOnly || !yellowContender?.id}
-                          onClick={() => handleAssign3WayRank(yellowContender!.id, 2)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAssign3WayRank(yellowContender!.id, 2);
+                          }}
                           className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
                             ranks.secondId === yellowContender?.id
-                              ? 'bg-slate-200 text-slate-950 ring-2 ring-white'
-                              : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                              ? 'bg-gradient-to-r from-slate-100 to-slate-300 text-slate-950 ring-2 ring-white scale-105 shadow-[0_0_15px_rgba(255,255,255,0.7)]'
+                              : 'bg-white/5 hover:bg-white/15 text-slate-300 border border-slate-400/30'
                           }`}
                         >
                           <span>🥈 Juara 2</span>
+                          {ranks.secondId === yellowContender?.id && <Check className="w-3.5 h-3.5" />}
                         </button>
 
                         <button
+                          type="button"
                           disabled={isReadOnly || !yellowContender?.id}
-                          onClick={() => handleAssign3WayRank(yellowContender!.id, 3)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAssign3WayRank(yellowContender!.id, 3);
+                          }}
                           className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
                             ranks.thirdId === yellowContender?.id
-                              ? 'bg-amber-600 text-white ring-2 ring-white'
-                              : 'bg-white/10 hover:bg-white/20 text-amber-400'
+                              ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white ring-2 ring-white scale-105 shadow-[0_0_15px_rgba(217,119,6,0.7)]'
+                              : 'bg-white/5 hover:bg-white/15 text-amber-400 border border-amber-600/30'
                           }`}
                         >
                           <span>🥉 Juara 3</span>
+                          {ranks.thirdId === yellowContender?.id && <Check className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
@@ -2957,41 +2999,56 @@ export default function TvBracketPage() {
                     {/* Rank Assignment Buttons for Blue */}
                     <div className="w-full space-y-1.5 pt-2 border-t border-coffee-800/80">
                       <button
+                        type="button"
                         disabled={isReadOnly || !blueContender?.id}
-                        onClick={() => handleAssign3WayRank(blueContender!.id, 1)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAssign3WayRank(blueContender!.id, 1);
+                        }}
                         className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-1.5 shadow ${
                           ranks.firstId === blueContender?.id
-                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.8)]'
-                            : 'bg-gold-500 hover:bg-gold-400 text-coffee-950'
+                            ? 'bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-400 text-coffee-950 ring-2 ring-white scale-105 shadow-[0_0_20px_rgba(234,179,8,0.9)]'
+                            : 'bg-yellow-500/10 hover:bg-yellow-500/25 text-yellow-300 border border-yellow-500/40'
                         }`}
                       >
                         <Trophy className="w-4 h-4" />
                         <span>{ranks.firstId === blueContender?.id ? '🏆 JUARA 1 (TERPILIH)' : 'PILIH JUARA 1'}</span>
+                        {ranks.firstId === blueContender?.id && <Check className="w-4 h-4" />}
                       </button>
 
                       <div className="grid grid-cols-2 gap-1.5">
                         <button
+                          type="button"
                           disabled={isReadOnly || !blueContender?.id}
-                          onClick={() => handleAssign3WayRank(blueContender!.id, 2)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAssign3WayRank(blueContender!.id, 2);
+                          }}
                           className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
                             ranks.secondId === blueContender?.id
-                              ? 'bg-slate-200 text-slate-950 ring-2 ring-white'
-                              : 'bg-white/10 hover:bg-white/20 text-slate-300'
+                              ? 'bg-gradient-to-r from-slate-100 to-slate-300 text-slate-950 ring-2 ring-white scale-105 shadow-[0_0_15px_rgba(255,255,255,0.7)]'
+                              : 'bg-white/5 hover:bg-white/15 text-slate-300 border border-slate-400/30'
                           }`}
                         >
                           <span>🥈 Juara 2</span>
+                          {ranks.secondId === blueContender?.id && <Check className="w-3.5 h-3.5" />}
                         </button>
 
                         <button
+                          type="button"
                           disabled={isReadOnly || !blueContender?.id}
-                          onClick={() => handleAssign3WayRank(blueContender!.id, 3)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAssign3WayRank(blueContender!.id, 3);
+                          }}
                           className={`py-2 rounded-xl font-black text-[11px] uppercase transition flex items-center justify-center gap-1 ${
                             ranks.thirdId === blueContender?.id
-                              ? 'bg-amber-600 text-white ring-2 ring-white'
-                              : 'bg-white/10 hover:bg-white/20 text-amber-400'
+                              ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white ring-2 ring-white scale-105 shadow-[0_0_15px_rgba(217,119,6,0.7)]'
+                              : 'bg-white/5 hover:bg-white/15 text-amber-400 border border-amber-600/30'
                           }`}
                         >
                           <span>🥉 Juara 3</span>
+                          {ranks.thirdId === blueContender?.id && <Check className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
@@ -3003,6 +3060,7 @@ export default function TvBracketPage() {
             {/* Bottom Actions: Sahkan Juara & Kembali */}
             <div className="relative z-10 pt-3 border-t border-coffee-800 flex items-center justify-between gap-3">
               <button
+                type="button"
                 onClick={() => setShow3WayLiveBattleModal(false)}
                 className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition active:scale-95"
               >
@@ -3012,10 +3070,7 @@ export default function TvBracketPage() {
               {!isReadOnly && (
                 <button
                   type="button"
-                  onClick={async () => {
-                    await handleSave3WayRanks();
-                    setShow3WayLiveBattleModal(false);
-                  }}
+                  onClick={() => handleSave3WayRanks()}
                   className="px-8 py-3 rounded-2xl bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 text-coffee-950 font-black text-xs md:text-sm shadow-[0_0_25px_rgba(234,179,8,0.6)] transition active:scale-95 flex items-center gap-2"
                 >
                   <Crown className="w-4 h-4 text-coffee-950" />
